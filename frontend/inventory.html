@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Gestionale - Inventario</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div id="container">
+        <h1>Inventario</h1>
+        <button id="logout">Logout</button>
+        <!-- Form di filtraggio -->
+        <form id="filter-form">
+            <input type="text" id="filter-codice" placeholder="Filtra per Codice">
+            <input type="text" id="filter-descrizione" placeholder="Filtra per Descrizione">
+            <input type="text" id="filter-locazione" placeholder="Filtra per Locazione">
+            <button type="submit">Filtra</button>
+        </form>
+        <table id="inventory-table">
+            <thead>
+                <tr>
+                    <th>Codice Articolo</th>
+                    <th>Descrizione</th>
+                    <th>Unità Misura</th>
+                    <th>Quantità Finale</th>
+                    <th>Locazione</th>
+                    <th>Foto</th>
+                    <th>Data Ingresso</th>
+                    <th>Azioni</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- I dati verranno inseriti dinamicamente -->
+            </tbody>
+        </table>
+        <p><a href="add_item.html">Aggiungi Nuovo Articolo</a></p>
+    </div>
+    <script src="app.js"></script>
+</body>
+
+</html>

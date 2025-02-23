@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Gestionale - Aggiungi Articolo</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div id="container">
+        <h1>Aggiungi Nuovo Articolo</h1>
+        <form id="form-add-item" enctype="multipart/form-data">
+            <input type="text" id="codice_articolo" name="codice_articolo" placeholder="Codice Articolo" required><br>
+            <input type="text" id="descrizione" name="descrizione" placeholder="Descrizione"><br>
+            <input type="text" id="unita_misura" name="unita_misura" placeholder="Unità di Misura"><br>
+            <input type="text" id="locazione" name="locazione" placeholder="Locazione"><br>
+            <!-- Upload della foto tramite file -->
+            <input type="file" id="foto" name="foto" accept="image/*"><br>
+            <input type="text" id="data_ingresso" name="data_ingresso" placeholder="Data Ingresso"><br>
+            <!-- I campi "carico" e "scarico" aggiornano automaticamente la quantità -->
+            <input type="number" id="carico" name="carico" placeholder="Carico (aggiungi)" step="0.01"><br>
+            <input type="number" id="scarico" name="scarico" placeholder="Scarico (sottrai)" step="0.01"><br>
+            <button type="submit">Aggiungi Articolo</button>
+        </form>
+        <div id="message"></div>
+        <p><a href="inventory.html">Visualizza Inventario</a></p>
+    </div>
+    <script src="app.js"></script>
+</body>
+
+</html>

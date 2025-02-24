@@ -17,7 +17,8 @@
             <input type="text" id="unita_misura" name="unita_misura" placeholder="Unità di Misura"><br>
             <input type="text" id="locazione" name="locazione" placeholder="Locazione"><br>
             <input type="file" id="foto" name="foto" accept="image/*"><br>
-            <input type="text" id="data_ingresso" name="data_ingresso" placeholder="Data Ingresso"><br>
+            <!-- Utilizza un input type="date" per la data -->
+            <input type="date" id="data_ingresso" name="data_ingresso" required><br>
             <!-- I nuovi movimenti di carico e scarico si sommano a quelli esistenti e aggiornano la quantità -->
             <input type="number" id="carico" name="carico" placeholder="Nuovo Carico (aggiungi)" step="0.01"><br>
             <input type="number" id="scarico" name="scarico" placeholder="Nuovo Scarico (sottrai)" step="0.01"><br>

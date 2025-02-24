@@ -1,10 +1,12 @@
 import os
-from flask import Flask, request, jsonify, send_from_directory
+from io import StringIO
+from flask import Flask, request, jsonify, send_from_directory, Response
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import secrets
+import csv
 
 app = Flask(__name__)
 CORS(app)
@@ -148,6 +150,11 @@ def add_inventory():
     if 'codice_articolo' not in request.form:
         return jsonify({'message': 'Dati mancanti'}), 400
     codice_articolo = request.form.get('codice_articolo')
+    
+    # Controlla se esiste già un articolo con lo stesso codice
+    if Inventory.query.filter_by(codice_articolo=codice_articolo).first():
+        return jsonify({'message': 'Prodotto già esistente'}), 400
+
     descrizione = request.form.get('descrizione')
     unita_misura = request.form.get('unita_misura')
     locazione = request.form.get('locazione')
@@ -258,6 +265,31 @@ def delete_inventory(item_id):
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+
+@app.route('/api/inventory/export', methods=['GET'])
+@token_required
+def export_inventory():
+    items = Inventory.query.all()
+    si = StringIO()
+    writer = csv.writer(si)
+    # Scrivi l'intestazione del CSV
+    writer.writerow(['Codice Articolo', 'Descrizione', 'Unità Misura', 'Quantità', 'Locazione', 'Data Ingresso'])
+    for item in items:
+        writer.writerow([
+            item.codice_articolo,
+            item.descrizione,
+            item.unita_misura,
+            item.quantita,
+            item.locazione,
+            item.data_ingresso
+        ])
+    output = si.getvalue()
+    si.close()
+    filename = "inventario.csv"
+    response = Response(output, mimetype="text/csv")
+    response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+    return response
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

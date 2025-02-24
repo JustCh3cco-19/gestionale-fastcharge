@@ -17,10 +17,11 @@
             <input type="text" id="locazione" name="locazione" placeholder="Locazione"><br>
             <!-- Upload della foto tramite file -->
             <input type="file" id="foto" name="foto" accept="image/*"><br>
-            <input type="text" id="data_ingresso" name="data_ingresso" placeholder="Data Ingresso"><br>
+            <!-- Utilizza un input type="date" per la selezione della data -->
+            <input type="date" id="data_ingresso" name="data_ingresso" required><br>
             <!-- I campi "carico" e "scarico" aggiornano automaticamente la quantità -->
-            <input type="number" id="carico" name="carico" placeholder="Carico (aggiungi)" step="0.01"><br>
-            <input type="number" id="scarico" name="scarico" placeholder="Scarico (sottrai)" step="0.01"><br>
+            <input type="number" id="carico" name="carico" placeholder="Aggiungi" step="0.01"><br>
+            <input type="number" id="scarico" name="scarico" placeholder="Sottrai" step="0.01"><br>
             <button type="submit">Aggiungi Articolo</button>
         </form>
         <div id="message"></div>

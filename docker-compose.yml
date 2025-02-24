@@ -1,14 +1,16 @@
 version: '3'
 services:
   backend:
-    build: ./backend
+    image: "gestionale-backend"
+    container_name: gestionale-backend
     ports:
       - "5000:5000"
     volumes:
       - ./backend:/app
       - ./backend/uploads:/app/uploads
   frontend:
-    image: nginx:alpine
+    image: "gestionale-frontend"
+    container_name: gestionale-frontend
     ports:
       - "8080:80"
     volumes:

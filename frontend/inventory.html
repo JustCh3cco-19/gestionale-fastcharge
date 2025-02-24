@@ -11,6 +11,7 @@
     <div id="container">
         <h1>Inventario</h1>
         <button id="logout">Logout</button>
+        <button id="export-btn">Esporta Excel</button>
         <!-- Form di filtraggio -->
         <form id="filter-form">
             <input type="text" id="filter-codice" placeholder="Filtra per Codice">
@@ -37,6 +38,13 @@
         </table>
         <p><a href="add_item.html">Aggiungi Nuovo Articolo</a></p>
     </div>
+
+    <!-- Modal per visualizzare la foto ingrandita -->
+    <div id="modal" class="modal">
+        <span class="close">&times;</span>
+        <img class="modal-content" id="modal-image">
+    </div>
+
     <script src="app.js"></script>
 </body>
 

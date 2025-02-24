@@ -2,7 +2,7 @@
 const API_BASE_URL = "http://localhost:5000/api";
 
 // --- LOGIN (index.html) ---
-if(document.getElementById('form-login')) {
+if (document.getElementById('form-login')) {
   document.getElementById('form-login').addEventListener('submit', async function(e) {
     e.preventDefault();
     const username = document.getElementById('login-username').value;
@@ -14,7 +14,7 @@ if(document.getElementById('form-login')) {
     });
     const data = await response.json();
     const messageDiv = document.getElementById('message');
-    if(response.ok) {
+    if (response.ok) {
       localStorage.setItem('token', data.token);
       window.location.href = "inventory.html";
     } else {
@@ -23,8 +23,8 @@ if(document.getElementById('form-login')) {
   });
 }
 
-// --- REGISTRAZIONE ---
-if(document.getElementById('form-register')) {
+// --- REGISTRAZIONE (register.html) ---
+if (document.getElementById('form-register')) {
   document.getElementById('form-register').addEventListener('submit', async function(e) {
     e.preventDefault();
     const username = document.getElementById('register-username').value;
@@ -40,34 +40,96 @@ if(document.getElementById('form-register')) {
   });
 }
 
-// --- INVENTARIO, FILTRAGGIO E AZIONI ---
-if(document.getElementById('inventory-table')) {
+// --- Toggle del filtro in inventory.html ---
+if (document.getElementById('toggle-filter')) {
+  document.getElementById('toggle-filter').addEventListener('click', function() {
+    const filterContainer = document.getElementById('filter-container');
+    if (filterContainer.style.display === "none") {
+      filterContainer.style.display = "block";
+      this.textContent = "Nascondi Filtri";
+    } else {
+      filterContainer.style.display = "none";
+      this.textContent = "Mostra Filtri";
+    }
+  });
+}
+
+// --- Funzione per costruire la vista cartella (tree view) ---
+function buildTreeView(items) {
+  // Raggruppa gli articoli per locazione
+  const groups = {};
+  items.forEach(item => {
+    const location = item.locazione || "Senza locazione";
+    if (!groups[location]) {
+      groups[location] = [];
+    }
+    groups[location].push(item);
+  });
+
+  const root = document.getElementById("tree-view-root");
+  if (!root) return;
+  root.innerHTML = "";
+
+  // Crea un <li> per ogni gruppo di locazione
+  for (const locationName in groups) {
+    const locItem = document.createElement("li");
+    locItem.textContent = locationName;
+
+    const articleList = document.createElement("ul");
+    groups[locationName].forEach(article => {
+      const articleLi = document.createElement("li");
+      articleLi.textContent = `${article.codice_articolo} - ${article.descrizione || ""}`;
+      articleList.appendChild(articleLi);
+    });
+
+    locItem.appendChild(articleList);
+    locItem.addEventListener("click", function(e) {
+      e.stopPropagation();
+      this.classList.toggle("expanded");
+    });
+    root.appendChild(locItem);
+  }
+}
+
+// --- Gestione della vista tabellare (inventory.html) ---
+if (document.getElementById('inventory-table')) {
   const token = localStorage.getItem('token');
-  if(!token) {
+  if (!token) {
     window.location.href = "index.html";
   }
 
-  async function fetchInventory(queryParams="") {
+  async function fetchInventory(queryParams = "") {
     const response = await fetch(`${API_BASE_URL}/inventory${queryParams}`, {
       headers: { "Authorization": "Bearer " + token }
     });
     const items = await response.json();
     const tbody = document.querySelector("#inventory-table tbody");
     tbody.innerHTML = "";
+
     items.forEach(item => {
-      let fotoHTML = item.foto ? `<img src="http://localhost:5000/uploads/${item.foto}" alt="Foto" width="50">` : '';
-      let row = document.createElement('tr');
+      let fotoHTML = "Nessun file";
+      if (item.foto) {
+        if (item.foto.toLowerCase().endsWith('.pdf')) {
+          fotoHTML = `<a class="btn" href="http://localhost:5000/uploads/${item.foto}" target="_blank">Visualizza PDF</a>`;
+        } else {
+          fotoHTML = `<a class="btn" href="http://localhost:5000/uploads/${item.foto}" target="_blank">Visualizza Immagine</a>`;
+        }
+      }
+
+      const row = document.createElement('tr');
       row.innerHTML = `
         <td>${item.codice_articolo}</td>
-        <td>${item.descrizione}</td>
-        <td>${item.unita_misura}</td>
+        <td>${item.descrizione || ""}</td>
+        <td>${item.unita_misura || ""}</td>
         <td>${item.quantita}</td>
-        <td>${item.locazione}</td>
+        <td>${item.locazione || ""}</td>
         <td>${fotoHTML}</td>
-        <td>${item.data_ingresso}</td>
+        <td>${item.data_ingresso || ""}</td>
+        <td>${item.created_by || ""}</td>
+        <td>${item.modified_by || ""}</td>
         <td>
-          <a href="edit_item.html?id=${item.id}">Modifica</a>
-          <button onclick="deleteItem(${item.id})">Elimina</button>
+          <a href="edit_item.html?id=${item.id}" class="btn">Modifica</a>
+          <button class="btn btn-danger" onclick="deleteItem(${item.id})">Elimina</button>
         </td>
       `;
       tbody.appendChild(row);
@@ -82,28 +144,46 @@ if(document.getElementById('inventory-table')) {
       });
       const data = await response.json();
       alert(data.message);
-      fetchInventory(); // Aggiorna la tabella
+      fetchInventory();
     }
   }
-
-  // Rende la funzione deleteItem globale
   window.deleteItem = deleteItem;
 
-  if(document.getElementById('filter-form')) {
+  if (document.getElementById('filter-form')) {
     document.getElementById('filter-form').addEventListener('submit', function(e) {
       e.preventDefault();
       const codice = document.getElementById('filter-codice').value;
       const descrizione = document.getElementById('filter-descrizione').value;
       const locazione = document.getElementById('filter-locazione').value;
       let queryParams = "?";
-      if(codice) queryParams += "codice_articolo=" + encodeURIComponent(codice) + "&";
-      if(descrizione) queryParams += "descrizione=" + encodeURIComponent(descrizione) + "&";
-      if(locazione) queryParams += "locazione=" + encodeURIComponent(locazione);
+      if (codice) queryParams += "codice_articolo=" + encodeURIComponent(codice) + "&";
+      if (descrizione) queryParams += "descrizione=" + encodeURIComponent(descrizione) + "&";
+      if (locazione) queryParams += "locazione=" + encodeURIComponent(locazione);
       fetchInventory(queryParams);
     });
   }
-  fetchInventory();
 
+  fetchInventory();
+  document.getElementById('logout').addEventListener('click', function() {
+    localStorage.removeItem('token');
+    window.location.href = "index.html";
+  });
+}
+
+// --- Gestione della vista cartella (folder_view.html) ---
+if (document.getElementById('tree-view-root')) {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    window.location.href = "index.html";
+  }
+  async function fetchInventoryForTree() {
+    const response = await fetch(`${API_BASE_URL}/inventory`, {
+      headers: { "Authorization": "Bearer " + token }
+    });
+    const items = await response.json();
+    buildTreeView(items);
+  }
+  fetchInventoryForTree();
   document.getElementById('logout').addEventListener('click', function() {
     localStorage.removeItem('token');
     window.location.href = "index.html";
@@ -111,17 +191,22 @@ if(document.getElementById('inventory-table')) {
 }
 
 // --- ESPORTA INVENTARIO ---
-if(document.getElementById('export-btn')) {
+if (document.getElementById('export-btn')) {
   async function exportInventory() {
     const token = localStorage.getItem('token');
     const response = await fetch(`${API_BASE_URL}/inventory/export`, {
       headers: { "Authorization": "Bearer " + token }
     });
+    if (!response.ok) {
+      const errorText = await response.text();
+      alert("Errore durante l'export: " + errorText);
+      return;
+    }
     const blob = await response.blob();
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = "inventario.csv"; // Il backend rinominerà il file includendo la data
+    a.download = "inventario.csv";
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -129,10 +214,10 @@ if(document.getElementById('export-btn')) {
   document.getElementById('export-btn').addEventListener('click', exportInventory);
 }
 
-// --- AGGIUNTA ARTICOLO (con file upload) ---
-if(document.getElementById('form-add-item')) {
+// --- AGGIUNTA ARTICOLO (add_item.html) ---
+if (document.getElementById('form-add-item')) {
   const token = localStorage.getItem('token');
-  if(!token) {
+  if (!token) {
     window.location.href = "index.html";
   }
   document.getElementById('form-add-item').addEventListener('submit', async function(e) {
@@ -143,10 +228,9 @@ if(document.getElementById('form-add-item')) {
     formData.append("unita_misura", document.getElementById('unita_misura').value);
     formData.append("locazione", document.getElementById('locazione').value);
     const fotoFile = document.getElementById('foto').files[0];
-    if(fotoFile) {
+    if (fotoFile) {
       formData.append("foto", fotoFile);
     }
-    // L'input type="date" restituisce un valore in formato "YYYY-MM-DD"
     formData.append("data_ingresso", document.getElementById('data_ingresso').value);
     formData.append("carico", document.getElementById('carico').value);
     formData.append("scarico", document.getElementById('scarico').value);
@@ -159,21 +243,21 @@ if(document.getElementById('form-add-item')) {
     const data = await response.json();
     const messageDiv = document.getElementById('message');
     messageDiv.textContent = data.message;
-    if(response.ok) {
+    if (response.ok) {
       document.getElementById('form-add-item').reset();
     }
   });
 }
 
-// --- MODIFICA ARTICOLO ---
-if(document.getElementById('form-edit-item')) {
+// --- MODIFICA ARTICOLO (edit_item.html) ---
+if (document.getElementById('form-edit-item')) {
   const token = localStorage.getItem('token');
-  if(!token) {
+  if (!token) {
     window.location.href = "index.html";
   }
   const urlParams = new URLSearchParams(window.location.search);
   const itemId = urlParams.get('id');
-  if(!itemId) {
+  if (!itemId) {
     document.getElementById('message').textContent = "ID articolo non specificato";
   } else {
     fetch(`${API_BASE_URL}/inventory/${itemId}`, {
@@ -181,7 +265,7 @@ if(document.getElementById('form-edit-item')) {
     })
     .then(response => response.json())
     .then(data => {
-      if(data.message) {
+      if (data.message) {
         document.getElementById('message').textContent = data.message;
       } else {
         document.getElementById('codice_articolo').value = data.codice_articolo || "";
@@ -203,13 +287,13 @@ if(document.getElementById('form-edit-item')) {
     formData.append("unita_misura", document.getElementById('unita_misura').value);
     formData.append("locazione", document.getElementById('locazione').value);
     const fotoFile = document.getElementById('foto').files[0];
-    if(fotoFile) {
+    if (fotoFile) {
       formData.append("foto", fotoFile);
     }
     formData.append("data_ingresso", document.getElementById('data_ingresso').value);
     formData.append("carico", document.getElementById('carico').value);
     formData.append("scarico", document.getElementById('scarico').value);
-
+    
     const response = await fetch(`${API_BASE_URL}/inventory/${itemId}`, {
       method: "PUT",
       headers: { "Authorization": "Bearer " + token },
@@ -218,7 +302,7 @@ if(document.getElementById('form-edit-item')) {
     const data = await response.json();
     const messageDiv = document.getElementById('message');
     messageDiv.textContent = data.message;
-    if(response.ok) {
+    if (response.ok) {
       setTimeout(() => {
         window.location.href = "inventory.html";
       }, 1500);

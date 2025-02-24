@@ -11,14 +11,19 @@
     <div id="container">
         <h1>Inventario</h1>
         <button id="logout">Logout</button>
-        <button id="export-btn">Esporta Excel</button>
-        <!-- Form di filtraggio -->
-        <form id="filter-form">
-            <input type="text" id="filter-codice" placeholder="Filtra per Codice">
-            <input type="text" id="filter-descrizione" placeholder="Filtra per Descrizione">
-            <input type="text" id="filter-locazione" placeholder="Filtra per Locazione">
-            <button type="submit">Filtra</button>
-        </form>
+        <button id="export-btn">Esporta Inventario</button>
+        <!-- Bottone per mostrare/nascondere il filtro -->
+        <button id="toggle-filter">Filtri</button>
+        <!-- Container del filtro, inizialmente nascosto -->
+        <div id="filter-container" style="display: none;">
+            <form id="filter-form">
+                <input type="text" id="filter-codice" placeholder="Filtra per Codice">
+                <input type="text" id="filter-descrizione" placeholder="Filtra per Descrizione">
+                <input type="text" id="filter-locazione" placeholder="Filtra per Locazione">
+                <button type="submit">Filtra</button>
+            </form>
+        </div>
+        <!-- Tabella tradizionale -->
         <table id="inventory-table">
             <thead>
                 <tr>
@@ -27,8 +32,10 @@
                     <th>Unità Misura</th>
                     <th>Quantità Finale</th>
                     <th>Locazione</th>
-                    <th>Foto</th>
+                    <th>Foto / File</th>
                     <th>Data Ingresso</th>
+                    <th>Creato da</th>
+                    <th>Modificato da</th>
                     <th>Azioni</th>
                 </tr>
             </thead>
@@ -36,15 +43,14 @@
                 <!-- I dati verranno inseriti dinamicamente -->
             </tbody>
         </table>
-        <p><a href="add_item.html">Aggiungi Nuovo Articolo</a></p>
+        <p><a class="btn" href="add_item.html">Aggiungi Nuovo Articolo</a></p>
+        <p><a class="btn" href="folder_view.html">Lista per Locazione</a></p>
     </div>
-
-    <!-- Modal per visualizzare la foto ingrandita -->
-    <div id="modal" class="modal">
+    <!-- Modal per visualizzare la foto ingrandita (opzionale) -->
+    <div id="modal" class="modal" style="display:none;">
         <span class="close">&times;</span>
         <img class="modal-content" id="modal-image">
     </div>
-
     <script src="app.js"></script>
 </body>
 

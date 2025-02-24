@@ -18,7 +18,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 UPLOAD_FOLDER = os.path.join(os.getcwd(), "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'webp'}
 
 db = SQLAlchemy(app)
 
@@ -40,13 +40,16 @@ class Inventory(db.Model):
     codice_articolo = db.Column(db.String(50), nullable=False)
     descrizione = db.Column(db.String(200))
     unita_misura = db.Column(db.String(20))
-    # La quantità totale è calcolata come carico cumulativo - scarico cumulativo
     quantita = db.Column(db.Float, default=0)
     locazione = db.Column(db.String(100))
     foto = db.Column(db.String(200))  # Salviamo il nome del file
     data_ingresso = db.Column(db.String(50))
     carico = db.Column(db.Float, default=0)
     scarico = db.Column(db.Float, default=0)
+    # Nuovi campi per tracciare l’autore
+    created_by = db.Column(db.String(80))
+    modified_by = db.Column(db.String(80))
+
 
 @app.before_first_request
 def create_tables():
@@ -119,9 +122,12 @@ def get_inventory():
             'quantita': item.quantita,
             'locazione': item.locazione,
             'foto': item.foto,
-            'data_ingresso': item.data_ingresso
+            'data_ingresso': item.data_ingresso,
+            'created_by': item.created_by,    # Aggiunto
+            'modified_by': item.modified_by   # Aggiunto
         }
         output.append(item_data)
+
     return jsonify(output), 200
 
 # Recupera un singolo articolo (per la modifica)
@@ -147,11 +153,15 @@ def get_inventory_item(item_id):
 @app.route('/api/inventory', methods=['POST'])
 @token_required
 def add_inventory():
+    # Recupera il token e l'username associato
+    auth = request.headers.get('Authorization')
+    token = auth.split(" ")[1]
+    username = tokens[token]
+    
     if 'codice_articolo' not in request.form:
         return jsonify({'message': 'Dati mancanti'}), 400
     codice_articolo = request.form.get('codice_articolo')
     
-    # Controlla se esiste già un articolo con lo stesso codice
     if Inventory.query.filter_by(codice_articolo=codice_articolo).first():
         return jsonify({'message': 'Prodotto già esistente'}), 400
 
@@ -159,7 +169,6 @@ def add_inventory():
     unita_misura = request.form.get('unita_misura')
     locazione = request.form.get('locazione')
     data_ingresso = request.form.get('data_ingresso')
-    # Se il campo è vuoto, usa 0 (utilizzando "or 0")
     carico = float(request.form.get('carico') or 0)
     scarico = float(request.form.get('scarico') or 0)
     quantita = carico - scarico
@@ -181,11 +190,13 @@ def add_inventory():
         foto=foto_filename,
         data_ingresso=data_ingresso,
         carico=carico,
-        scarico=scarico
+        scarico=scarico,
+        created_by=username   # Imposta chi ha creato l'articolo
     )
     db.session.add(new_item)
     db.session.commit()
     return jsonify({'message': 'Articolo aggiunto con successo'}), 201
+
 
 # Modifica un articolo esistente: i nuovi valori di carico e scarico vengono sommati a quelli esistenti
 # e la quantità viene ricalcolata automaticamente
@@ -196,7 +207,13 @@ def update_inventory(item_id):
     if not item:
         return jsonify({'message': 'Articolo non trovato'}), 404
 
+    # Recupera l'username dal token
+    auth = request.headers.get('Authorization')
+    token = auth.split(" ")[1]
+    username = tokens[token]
+
     if request.content_type.startswith('multipart/form-data'):
+        # Aggiornamento dei campi tramite form-data
         codice_articolo = request.form.get('codice_articolo')
         if codice_articolo:
             item.codice_articolo = codice_articolo
@@ -215,10 +232,8 @@ def update_inventory(item_id):
         
         nuovo_carico = float(request.form.get('carico') or 0)
         nuovo_scarico = float(request.form.get('scarico') or 0)
-        # Somma i nuovi movimenti a quelli esistenti
         item.carico += nuovo_carico
         item.scarico += nuovo_scarico
-        # Ricalcola la quantità finale
         item.quantita = item.carico - item.scarico
         
         if 'foto' in request.files:
@@ -246,8 +261,13 @@ def update_inventory(item_id):
         item.quantita = item.carico - item.scarico
         if data.get('foto'):
             item.foto = data.get('foto')
+    
+    # Registra l'utente che ha effettuato la modifica
+    item.modified_by = username
+
     db.session.commit()
     return jsonify({'message': 'Articolo aggiornato con successo'}), 200
+
 
 # Elimina un articolo esistente
 @app.route('/api/inventory/<int:item_id>', methods=['DELETE'])

@@ -15,17 +15,18 @@
             <input type="text" id="descrizione" name="descrizione" placeholder="Descrizione"><br>
             <input type="text" id="unita_misura" name="unita_misura" placeholder="Unità di Misura"><br>
             <input type="text" id="locazione" name="locazione" placeholder="Locazione"><br>
-            <!-- Upload della foto tramite file -->
-            <input type="file" id="foto" name="foto" accept="image/*"><br>
-            <!-- Utilizza un input type="date" per la selezione della data -->
+            <!-- Selezione della data -->
             <input type="date" id="data_ingresso" name="data_ingresso" required><br>
-            <!-- I campi "carico" e "scarico" aggiornano automaticamente la quantità -->
-            <input type="number" id="carico" name="carico" placeholder="Aggiungi" step="0.01"><br>
-            <input type="number" id="scarico" name="scarico" placeholder="Sottrai" step="0.01"><br>
-            <button type="submit">Aggiungi Articolo</button>
+            <!-- Campi per carico e scarico -->
+            <input type="number" id="carico" name="carico" placeholder="Aggiungi Quantità" step="1"><br>
+            <input type="number" id="scarico" name="scarico" placeholder="Sottrai Quantità" step="1"><br>
+            <!-- Upload del file (immagini e PDF) -->
+            <label for="foto">Carica File:</label>
+            <input type="file" id="foto" name="foto" accept="image/*,application/pdf">
+            <button class="btn" type="submit">Aggiungi Articolo</button>
         </form>
         <div id="message"></div>
-        <p><a href="inventory.html">Visualizza Inventario</a></p>
+        <p><a class="btn" href="inventory.html">Torna all'Inventario</a></p>
     </div>
     <script src="app.js"></script>
 </body>

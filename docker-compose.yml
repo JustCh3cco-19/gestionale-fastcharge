@@ -8,6 +8,9 @@ services:
     volumes:
       - ./backend:/app
       - ./backend/uploads:/app/uploads
+    networks:
+      - gestionale-network
+
   frontend:
     image: "gestionale-frontend"
     container_name: gestionale-frontend
@@ -15,3 +18,9 @@ services:
       - "8080:80"
     volumes:
       - ./frontend:/usr/share/nginx/html:ro
+    networks:
+      - gestionale-network
+
+networks:
+  gestionale-network:
+    driver: bridge

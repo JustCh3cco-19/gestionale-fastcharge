@@ -17,8 +17,8 @@
             <input type="text" id="locazione" name="locazione" placeholder="Locazione"><br>
             <input type="file" id="foto" name="foto" accept="image/*,application/pdf">
             <input type="date" id="data_ingresso" name="data_ingresso" required><br>
-            <input type="number" id="carico" name="carico" placeholder="Nuovo Carico (aggiungi)" step="0.01"><br>
-            <input type="number" id="scarico" name="scarico" placeholder="Nuovo Scarico (sottrai)" step="0.01"><br>
+            <input type="number" id="carico" name="carico" placeholder="Nuovo Carico (aggiungi)" step="1" min="0"><br>
+            <input type="number" id="scarico" name="scarico" placeholder="Nuovo Scarico (sottrai)" step="1" min="0"><br>
             <button type="submit">Aggiorna Articolo</button>
         </form>
         <div id="message"></div>

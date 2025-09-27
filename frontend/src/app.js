@@ -1,24 +1,107 @@
 // URL base per le API del backend
 const API_BASE_URL = "http://localhost:5000/api";
 
+const POPUP_VISIBLE_CLASS = 'visible';
+let popupOverlay = null;
+let popupMessageEl = null;
+let popupTimeoutId = null;
+
+async function safeJson(response) {
+  try {
+    return await response.json();
+  } catch (error) {
+    return {};
+  }
+}
+
+function ensurePopupElements() {
+  if (popupOverlay) return;
+
+  popupOverlay = document.createElement('div');
+  popupOverlay.id = 'popup-overlay';
+  popupOverlay.className = 'popup-overlay';
+  popupOverlay.innerHTML = `
+    <div class="popup">
+      <div class="popup__icon" aria-hidden="true"></div>
+      <p class="popup__message"></p>
+      <button type="button" class="popup__close">Chiudi</button>
+    </div>
+  `;
+  popupMessageEl = popupOverlay.querySelector('.popup__message');
+  const closeButton = popupOverlay.querySelector('.popup__close');
+
+  popupOverlay.addEventListener('click', (event) => {
+    if (event.target === popupOverlay) {
+      hidePopup();
+    }
+  });
+  closeButton.addEventListener('click', hidePopup);
+
+  document.body.appendChild(popupOverlay);
+}
+
+function hidePopup() {
+  if (!popupOverlay) return;
+  popupOverlay.classList.remove(POPUP_VISIBLE_CLASS, 'success', 'error', 'info');
+  document.body.classList.remove('popup-open');
+  if (popupTimeoutId) {
+    clearTimeout(popupTimeoutId);
+    popupTimeoutId = null;
+  }
+}
+
+function showPopup(message, type = 'info', autoClose = true) {
+  ensurePopupElements();
+  popupOverlay.classList.remove('success', 'error', 'info');
+  popupOverlay.classList.add(type, POPUP_VISIBLE_CLASS);
+  popupMessageEl.textContent = message;
+  document.body.classList.add('popup-open');
+
+  if (popupTimeoutId) {
+    clearTimeout(popupTimeoutId);
+    popupTimeoutId = null;
+  }
+
+  if (autoClose && type === 'success') {
+    popupTimeoutId = setTimeout(hidePopup, 2000);
+  }
+}
+
+window.hidePopup = hidePopup;
+window.showPopup = showPopup;
+
+function isValidUsername(username) {
+  return /^[A-Za-z0-9_.-]{3,64}$/.test(username);
+}
+
+function isPasswordStrong(password) {
+  return password.length >= 8 && /[A-Z]/.test(password) && /[a-z]/.test(password) && /[0-9]/.test(password);
+}
+
 // --- LOGIN (index.html) ---
 if (document.getElementById('form-login')) {
   document.getElementById('form-login').addEventListener('submit', async function(e) {
     e.preventDefault();
     const username = document.getElementById('login-username').value;
     const password = document.getElementById('login-password').value;
-    const response = await fetch(`${API_BASE_URL}/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password })
-    });
-    const data = await response.json();
-    const messageDiv = document.getElementById('message');
-    if (response.ok) {
-      localStorage.setItem('token', data.token);
-      window.location.href = "inventory.html";
-    } else {
-      messageDiv.textContent = data.message;
+    try {
+      const response = await fetch(`${API_BASE_URL}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await safeJson(response);
+      if (response.ok) {
+        localStorage.setItem('token', data.token);
+        window.location.href = "inventory.html";
+      } else {
+        const messageDiv = document.getElementById('message');
+        if (messageDiv) messageDiv.textContent = '';
+        showPopup(data.message || 'Credenziali non valide', 'error', false);
+      }
+    } catch (error) {
+      console.error(error);
+      showPopup('Impossibile contattare il server. Riprova più tardi.', 'error', false);
     }
   });
 }
@@ -29,14 +112,41 @@ if (document.getElementById('form-register')) {
     e.preventDefault();
     const username = document.getElementById('register-username').value;
     const password = document.getElementById('register-password').value;
-    const response = await fetch(`${API_BASE_URL}/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password })
-    });
-    const data = await response.json();
-    const messageDiv = document.getElementById('message');
-    messageDiv.textContent = data.message;
+    const confirmPassword = document.getElementById('register-confirm-password').value;
+
+    if (!isValidUsername(username)) {
+      showPopup('Username non valido. Usa 3-64 caratteri alfanumerici, ".", "-" o "_".', 'error', false);
+      return;
+    }
+    if (!isPasswordStrong(password)) {
+      showPopup('Password troppo debole. Usa almeno 8 caratteri con maiuscole, minuscole e numeri.', 'error', false);
+      return;
+    }
+    if (password !== confirmPassword) {
+      showPopup('Le password non coincidono.', 'error', false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password, confirm_password: confirmPassword })
+      });
+      const data = await safeJson(response);
+      if (response.ok) {
+        showPopup(data.message || 'Registrazione completata', 'success');
+        document.getElementById('form-register').reset();
+        setTimeout(() => {
+          window.location.href = "index.html";
+        }, 2200);
+      } else {
+        showPopup(data.message || 'Registrazione non riuscita', 'error', false);
+      }
+    } catch (error) {
+      console.error(error);
+      showPopup('Impossibile contattare il server. Riprova più tardi.', 'error', false);
+    }
   });
 }
 
@@ -99,10 +209,28 @@ if (document.getElementById('inventory-table')) {
   }
 
   async function fetchInventory(queryParams = "") {
-    const response = await fetch(`${API_BASE_URL}/inventory${queryParams}`, {
-      headers: { "Authorization": "Bearer " + token }
-    });
-    const items = await response.json();
+    let response;
+    try {
+      response = await fetch(`${API_BASE_URL}/inventory${queryParams}`, {
+        headers: { "Authorization": "Bearer " + token }
+      });
+    } catch (error) {
+      console.error(error);
+      showPopup('Impossibile contattare il server. Riprova più tardi.', 'error', false);
+      return;
+    }
+    if (!response.ok) {
+      if (response.status === 401) {
+        showPopup('Sessione scaduta, effettua di nuovo il login.', 'error', false);
+        localStorage.removeItem('token');
+        window.location.href = "index.html";
+        return;
+      }
+      const errorData = await safeJson(response);
+      showPopup(errorData.message || 'Errore nel caricamento dell\'inventario', 'error', false);
+      return;
+    }
+    const items = await safeJson(response);
     const tbody = document.querySelector("#inventory-table tbody");
     tbody.innerHTML = "";
 
@@ -138,13 +266,24 @@ if (document.getElementById('inventory-table')) {
 
   async function deleteItem(itemId) {
     if (confirm("Sei sicuro di voler eliminare questo articolo?")) {
-      const response = await fetch(`${API_BASE_URL}/inventory/${itemId}`, {
-        method: "DELETE",
-        headers: { "Authorization": "Bearer " + token }
-      });
-      const data = await response.json();
-      alert(data.message);
-      fetchInventory();
+      let response;
+      try {
+        response = await fetch(`${API_BASE_URL}/inventory/${itemId}`, {
+          method: "DELETE",
+          headers: { "Authorization": "Bearer " + token }
+        });
+      } catch (error) {
+        console.error(error);
+        showPopup('Impossibile contattare il server. Riprova più tardi.', 'error', false);
+        return;
+      }
+      const data = await safeJson(response);
+      if (response.ok) {
+        showPopup(data.message || 'Articolo eliminato', 'success');
+        fetchInventory();
+      } else {
+        showPopup(data.message || 'Impossibile eliminare l\'articolo', 'error', false);
+      }
     }
   }
   window.deleteItem = deleteItem;
@@ -177,10 +316,28 @@ if (document.getElementById('tree-view-root')) {
     window.location.href = "index.html";
   }
   async function fetchInventoryForTree() {
-    const response = await fetch(`${API_BASE_URL}/inventory`, {
-      headers: { "Authorization": "Bearer " + token }
-    });
-    const items = await response.json();
+    let response;
+    try {
+      response = await fetch(`${API_BASE_URL}/inventory`, {
+        headers: { "Authorization": "Bearer " + token }
+      });
+    } catch (error) {
+      console.error(error);
+      showPopup('Impossibile contattare il server. Riprova più tardi.', 'error', false);
+      return;
+    }
+    if (!response.ok) {
+      if (response.status === 401) {
+        showPopup('Sessione scaduta, effettua di nuovo il login.', 'error', false);
+        localStorage.removeItem('token');
+        window.location.href = "index.html";
+        return;
+      }
+      const errorData = await safeJson(response);
+      showPopup(errorData.message || 'Errore nel caricamento dell\'inventario', 'error', false);
+      return;
+    }
+    const items = await safeJson(response);
     buildTreeView(items);
   }
   fetchInventoryForTree();
@@ -194,12 +351,19 @@ if (document.getElementById('tree-view-root')) {
 if (document.getElementById('export-btn')) {
   async function exportInventory() {
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE_URL}/inventory/export`, {
-      headers: { "Authorization": "Bearer " + token }
-    });
+    let response;
+    try {
+      response = await fetch(`${API_BASE_URL}/inventory/export`, {
+        headers: { "Authorization": "Bearer " + token }
+      });
+    } catch (error) {
+      console.error(error);
+      showPopup('Impossibile contattare il server. Riprova più tardi.', 'error', false);
+      return;
+    }
     if (!response.ok) {
       const errorText = await response.text();
-      alert("Errore durante l'export: " + errorText);
+      showPopup("Errore durante l'export: " + errorText, 'error', false);
       return;
     }
     const blob = await response.blob();
@@ -235,16 +399,24 @@ if (document.getElementById('form-add-item')) {
     formData.append("carico", document.getElementById('carico').value);
     formData.append("scarico", document.getElementById('scarico').value);
     
-    const response = await fetch(`${API_BASE_URL}/inventory`, {
-      method: "POST",
-      headers: { "Authorization": "Bearer " + token },
-      body: formData
-    });
-    const data = await response.json();
-    const messageDiv = document.getElementById('message');
-    messageDiv.textContent = data.message;
+    let response;
+    try {
+      response = await fetch(`${API_BASE_URL}/inventory`, {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + token },
+        body: formData
+      });
+    } catch (error) {
+      console.error(error);
+      showPopup('Impossibile contattare il server. Riprova più tardi.', 'error', false);
+      return;
+    }
+    const data = await safeJson(response);
     if (response.ok) {
+      showPopup(data.message || 'Articolo aggiunto con successo', 'success');
       document.getElementById('form-add-item').reset();
+    } else {
+      showPopup(data.message || 'Errore durante l\'aggiunta dell\'articolo', 'error', false);
     }
   });
 }
@@ -258,7 +430,7 @@ if (document.getElementById('form-edit-item')) {
   const urlParams = new URLSearchParams(window.location.search);
   const itemId = urlParams.get('id');
   if (!itemId) {
-    document.getElementById('message').textContent = "ID articolo non specificato";
+    showPopup('ID articolo non specificato', 'error', false);
   } else {
     fetch(`${API_BASE_URL}/inventory/${itemId}`, {
       headers: { "Authorization": "Bearer " + token }
@@ -266,7 +438,7 @@ if (document.getElementById('form-edit-item')) {
     .then(response => response.json())
     .then(data => {
       if (data.message) {
-        document.getElementById('message').textContent = data.message;
+        showPopup(data.message, 'error', false);
       } else {
         document.getElementById('codice_articolo').value = data.codice_articolo || "";
         document.getElementById('descrizione').value = data.descrizione || "";
@@ -276,7 +448,8 @@ if (document.getElementById('form-edit-item')) {
       }
     })
     .catch(error => {
-      document.getElementById('message').textContent = "Errore nel recupero dei dati";
+      console.error(error);
+      showPopup('Errore nel recupero dei dati', 'error', false);
     });
   }
   document.getElementById('form-edit-item').addEventListener('submit', async function(e) {
@@ -294,18 +467,26 @@ if (document.getElementById('form-edit-item')) {
     formData.append("carico", document.getElementById('carico').value);
     formData.append("scarico", document.getElementById('scarico').value);
     
-    const response = await fetch(`${API_BASE_URL}/inventory/${itemId}`, {
-      method: "PUT",
-      headers: { "Authorization": "Bearer " + token },
-      body: formData
-    });
-    const data = await response.json();
-    const messageDiv = document.getElementById('message');
-    messageDiv.textContent = data.message;
+    let response;
+    try {
+      response = await fetch(`${API_BASE_URL}/inventory/${itemId}`, {
+        method: "PUT",
+        headers: { "Authorization": "Bearer " + token },
+        body: formData
+      });
+    } catch (error) {
+      console.error(error);
+      showPopup('Impossibile contattare il server. Riprova più tardi.', 'error', false);
+      return;
+    }
+    const data = await safeJson(response);
     if (response.ok) {
+      showPopup(data.message || 'Articolo aggiornato con successo', 'success');
       setTimeout(() => {
         window.location.href = "inventory.html";
-      }, 1500);
+      }, 2200);
+    } else {
+      showPopup(data.message || 'Errore durante l\'aggiornamento dell\'articolo', 'error', false);
     }
   });
 }

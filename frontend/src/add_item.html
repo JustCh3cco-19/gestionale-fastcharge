@@ -18,8 +18,8 @@
             <!-- Selezione della data -->
             <input type="date" id="data_ingresso" name="data_ingresso" required><br>
             <!-- Campi per carico e scarico -->
-            <input type="number" id="carico" name="carico" placeholder="Aggiungi Quantità" step="1"><br>
-            <input type="number" id="scarico" name="scarico" placeholder="Sottrai Quantità" step="1"><br>
+            <input type="number" id="carico" name="carico" placeholder="Aggiungi Quantità" step="1" min="0"><br>
+            <input type="number" id="scarico" name="scarico" placeholder="Sottrai Quantità" step="1" min="0"><br>
             <!-- Upload del file (immagini e PDF) -->
             <label for="foto">Carica File:</label>
             <input type="file" id="foto" name="foto" accept="image/*,application/pdf">

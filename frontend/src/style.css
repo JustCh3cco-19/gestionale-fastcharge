@@ -146,3 +146,90 @@ button.btn-danger {
 .tree-view li.expanded::before {
   content: "▼";
 }
+
+.form-hint {
+  font-size: 12px;
+  color: #555;
+  margin: -5px 0 10px;
+}
+
+.popup-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  padding: 20px;
+}
+
+.popup-overlay.visible {
+  display: flex;
+}
+
+body.popup-open {
+  overflow: hidden;
+}
+
+.popup {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 24px 28px;
+  max-width: 320px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+  position: relative;
+}
+
+.popup__icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  background-color: #ff9800;
+  color: #fff;
+}
+
+.popup__icon::before {
+  content: "";
+}
+
+.popup__message {
+  margin-bottom: 18px;
+  font-size: 16px;
+  color: #333;
+}
+
+.popup__close {
+  background: #ff9800;
+}
+
+.popup-overlay.success .popup__icon {
+  background: #4caf50;
+}
+
+.popup-overlay.success .popup__icon::before {
+  content: "✔";
+}
+
+.popup-overlay.error .popup__icon {
+  background: #f44336;
+}
+
+.popup-overlay.error .popup__icon::before {
+  content: "✖";
+}
+
+.popup-overlay.info .popup__icon {
+  background: #2196f3;
+}
+
+.popup-overlay.info .popup__icon::before {
+  content: "ℹ";
+}

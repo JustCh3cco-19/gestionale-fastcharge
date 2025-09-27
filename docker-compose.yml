@@ -3,11 +3,16 @@ services:
   backend:
     image: "gestionale-backend"
     container_name: gestionale-backend
+    depends_on:
+      - db
     ports:
       - "5000:5000"
     volumes:
       - ./backend:/app
       - ./backend/uploads:/app/uploads
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://fastcharge:fastcharge@db:5432/fastcharge
+      - SECRET_KEY=super-secret-key
     networks:
       - gestionale-network
 
@@ -17,10 +22,25 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - ./frontend:/usr/share/nginx/html:ro
+      - ./frontend/src:/usr/share/nginx/html:ro
+    networks:
+      - gestionale-network
+
+  db:
+    image: postgres:14-alpine
+    container_name: gestionale-db
+    environment:
+      POSTGRES_DB: fastcharge
+      POSTGRES_USER: fastcharge
+      POSTGRES_PASSWORD: fastcharge
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
     networks:
       - gestionale-network
 
 networks:
   gestionale-network:
     driver: bridge
+
+volumes:
+  postgres-data:

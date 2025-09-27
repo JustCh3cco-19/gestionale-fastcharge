@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 services:
   backend:
     image: "gestionale-backend"
@@ -6,13 +6,16 @@ services:
     depends_on:
       - db
     ports:
-      - "5000:5000"
+      - "${BACKEND_PORT:-5000}:5000"
     volumes:
       - ./backend:/app
       - ./backend/uploads:/app/uploads
     environment:
-      - DATABASE_URL=postgresql+psycopg2://fastcharge:fastcharge@db:5432/fastcharge
-      - SECRET_KEY=super-secret-key
+      - DATABASE_URL=${BACKEND_DATABASE_URL:-postgresql+psycopg2://fastcharge:fastcharge@db:5432/fastcharge}
+      - SECRET_KEY=${BACKEND_SECRET_KEY}
+      - TOKEN_TTL_SECONDS=${BACKEND_TOKEN_TTL_SECONDS:-86400}
+      - DB_INIT_MAX_RETRIES=${BACKEND_DB_INIT_MAX_RETRIES:-10}
+      - DB_INIT_RETRY_DELAY=${BACKEND_DB_INIT_RETRY_DELAY:-2}
     networks:
       - gestionale-network
 
@@ -20,7 +23,7 @@ services:
     image: "gestionale-frontend"
     container_name: gestionale-frontend
     ports:
-      - "8080:80"
+      - "${FRONTEND_PORT:-8080}:80"
     volumes:
       - ./frontend/src:/usr/share/nginx/html:ro
     networks:
@@ -30,9 +33,9 @@ services:
     image: postgres:14-alpine
     container_name: gestionale-db
     environment:
-      POSTGRES_DB: fastcharge
-      POSTGRES_USER: fastcharge
-      POSTGRES_PASSWORD: fastcharge
+      POSTGRES_DB: ${POSTGRES_DB:-fastcharge}
+      POSTGRES_USER: ${POSTGRES_USER:-fastcharge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:

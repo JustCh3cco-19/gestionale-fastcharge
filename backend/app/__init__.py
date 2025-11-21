@@ -22,16 +22,12 @@ def create_app() -> Flask:
         _initialise_database(app)
 
     from .auth.routes import bp as auth_bp
+    from .files import bp as files_bp
     from .inventory.routes import bp as inventory_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api')
+    app.register_blueprint(files_bp, url_prefix='/api/files')
     app.register_blueprint(inventory_bp, url_prefix='/api')
-
-    @app.route('/uploads/<path:filename>')
-    def uploaded_file(filename: str):
-        from flask import send_from_directory
-
-        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
     return app
 

@@ -1,23 +1,33 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Gestionale - Lista per Locazione</title>
+    <title>Gestionale FastCharge · Vista per locazione</title>
     <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-    <div id="container">
-        <h1>Lista per Locazione</h1>
-        <p><a class="btn" href="inventory.html">Torna all'Inventario</a></p>
-        <div id="folder-container">
-            <ul id="tree-view-root" class="tree-view">
-                <!-- L’albero verrà generato dinamicamente -->
-            </ul>
-        </div>
+    <div class="page-shell">
+        <main class="app-container">
+            <header class="app-header card">
+                <div class="brand">
+                    <span class="brand__logo">🗂️</span>
+                    <div>
+                        <p class="eyebrow">Magazzino</p>
+                        <h1 class="brand__title">Vista per locazione</h1>
+                        <p class="stat-footnote">Espandi i nodi per visualizzare gli articoli presenti in ogni area.</p>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <a class="btn btn-secondary" href="inventory.html">Torna all'inventario</a>
+                    <button id="logout" class="btn btn-danger" type="button">Logout</button>
+                </div>
+            </header>
+
+            <section class="card tree-panel">
+                <ul id="tree-view-root" class="tree-view"></ul>
+            </section>
+        </main>
     </div>
     <script src="app.js"></script>
 </body>
-
 </html>

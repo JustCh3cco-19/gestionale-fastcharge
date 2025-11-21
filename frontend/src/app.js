@@ -78,6 +78,85 @@ function isPasswordStrong(password) {
   return password.length >= 8 && /[A-Z]/.test(password) && /[a-z]/.test(password) && /[0-9]/.test(password);
 }
 
+function formatNumber(value) {
+  const formatter = new Intl.NumberFormat('it-IT');
+  return formatter.format(Number(value) || 0);
+}
+
+function updateInventoryStats(items) {
+  const totalItemsEl = document.getElementById('stat-items');
+  const totalQuantityEl = document.getElementById('stat-quantity');
+  const locationsEl = document.getElementById('stat-locations');
+  const updatedEl = document.getElementById('stat-updated');
+
+  if (!totalItemsEl || !totalQuantityEl || !locationsEl || !updatedEl) {
+    return;
+  }
+
+  const totalItems = items.length;
+  const totalQuantity = items.reduce((acc, item) => acc + (item.quantita || 0), 0);
+  const uniqueLocations = new Set(items.filter((item) => item.locazione).map((item) => item.locazione.trim()));
+
+  totalItemsEl.textContent = formatNumber(totalItems);
+  totalQuantityEl.textContent = formatNumber(totalQuantity);
+  locationsEl.textContent = formatNumber(uniqueLocations.size);
+  updatedEl.textContent = new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+}
+
+async function openAttachmentFile(fileToken, suggestedName, kind) {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    showPopup('Sessione scaduta. Effettua nuovamente il login.', 'error', false);
+    window.location.href = 'index.html';
+    return;
+  }
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/files/${fileToken}`, {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+  } catch (error) {
+    console.error(error);
+    showPopup('Impossibile scaricare il file in questo momento.', 'error', false);
+    return;
+  }
+
+  if (!response.ok) {
+    const data = await safeJson(response);
+    showPopup(data.message || 'File non disponibile', 'error', false);
+    return;
+  }
+
+  const blob = await response.blob();
+  const contentType = response.headers.get('Content-Type') || '';
+  const url = window.URL.createObjectURL(blob);
+  const previewable = contentType.startsWith('image/') || contentType === 'application/pdf';
+
+  const filename = suggestedName || `allegato.${kind === 'pdf' ? 'pdf' : kind === 'image' ? 'png' : 'bin'}`;
+
+  if (previewable) {
+    const previewWindow = window.open(url, '_blank');
+    if (!previewWindow) {
+      triggerDownload(url, filename);
+    } else {
+      setTimeout(() => window.URL.revokeObjectURL(url), 4000);
+    }
+  } else {
+    triggerDownload(url, filename);
+  }
+}
+
+function triggerDownload(url, filename) {
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => window.URL.revokeObjectURL(url), 1500);
+}
+
 // --- LOGIN (index.html) ---
 if (document.getElementById('form-login')) {
   document.getElementById('form-login').addEventListener('submit', async function(e) {
@@ -151,18 +230,18 @@ if (document.getElementById('form-register')) {
 }
 
 // --- Toggle del filtro in inventory.html ---
-if (document.getElementById('toggle-filter')) {
-  document.getElementById('toggle-filter').addEventListener('click', function() {
-    const filterContainer = document.getElementById('filter-container');
-    if (filterContainer.style.display === "none") {
-      filterContainer.style.display = "block";
-      this.textContent = "Nascondi Filtri";
-    } else {
-      filterContainer.style.display = "none";
-      this.textContent = "Mostra Filtri";
-    }
+(function initFilterToggle() {
+  const toggleButton = document.getElementById('toggle-filter');
+  const filterPanel = document.getElementById('filter-container');
+  if (!toggleButton || !filterPanel) return;
+  filterPanel.classList.remove('is-open');
+  toggleButton.addEventListener('click', function() {
+    filterPanel.classList.toggle('is-open');
+    const expanded = filterPanel.classList.contains('is-open');
+    this.textContent = expanded ? 'Nascondi filtri' : 'Mostra filtri';
+    this.setAttribute('aria-expanded', expanded ? 'true' : 'false');
   });
-}
+})();
 
 // --- Funzione per costruire la vista cartella (tree view) ---
 function buildTreeView(items) {
@@ -205,14 +284,30 @@ function buildTreeView(items) {
 if (document.getElementById('inventory-table')) {
   const token = localStorage.getItem('token');
   if (!token) {
-    window.location.href = "index.html";
+    window.location.href = 'index.html';
   }
 
-  async function fetchInventory(queryParams = "") {
+  const inventoryTable = document.getElementById('inventory-table');
+  const inventoryBody = inventoryTable.querySelector('tbody');
+
+  inventoryBody.addEventListener('click', (event) => {
+    const attachmentTrigger = event.target.closest('[data-action="open-attachment"]');
+    if (attachmentTrigger) {
+      event.preventDefault();
+      openAttachmentFile(
+        attachmentTrigger.dataset.token,
+        attachmentTrigger.dataset.filename,
+        attachmentTrigger.dataset.kind
+      );
+      return;
+    }
+  });
+
+  async function fetchInventory(queryParams = '') {
     let response;
     try {
       response = await fetch(`${API_BASE_URL}/inventory${queryParams}`, {
-        headers: { "Authorization": "Bearer " + token }
+        headers: { Authorization: 'Bearer ' + token }
       });
     } catch (error) {
       console.error(error);
@@ -223,89 +318,134 @@ if (document.getElementById('inventory-table')) {
       if (response.status === 401) {
         showPopup('Sessione scaduta, effettua di nuovo il login.', 'error', false);
         localStorage.removeItem('token');
-        window.location.href = "index.html";
+        window.location.href = 'index.html';
         return;
       }
       const errorData = await safeJson(response);
-      showPopup(errorData.message || 'Errore nel caricamento dell\'inventario', 'error', false);
+      showPopup(errorData.message || "Errore nel caricamento dell'inventario", 'error', false);
       return;
     }
     const items = await safeJson(response);
-    const tbody = document.querySelector("#inventory-table tbody");
-    tbody.innerHTML = "";
+    renderInventoryRows(items);
+    updateInventoryStats(items);
+  }
 
-    items.forEach(item => {
-      let fotoHTML = "Nessun file";
-      if (item.foto) {
-        if (item.foto.toLowerCase().endsWith('.pdf')) {
-          fotoHTML = `<a class="btn" href="http://localhost:5000/uploads/${item.foto}" target="_blank">Visualizza PDF</a>`;
-        } else {
-          fotoHTML = `<a class="btn" href="http://localhost:5000/uploads/${item.foto}" target="_blank">Visualizza Immagine</a>`;
-        }
-      }
+  function createAttachmentButton(attachment) {
+    const button = document.createElement('button');
+    button.className = 'btn btn-ghost btn-small';
+    button.type = 'button';
+    button.dataset.action = 'open-attachment';
+    button.dataset.token = attachment.token;
+    button.dataset.filename = attachment.suggested_filename || '';
+    button.dataset.kind = attachment.kind || 'file';
+    let label = 'Apri file';
+    if (attachment.kind === 'pdf') {
+      label = 'Apri PDF';
+    } else if (attachment.kind === 'image') {
+      label = 'Apri immagine';
+    }
+    button.textContent = label;
+    return button;
+  }
 
+  function renderInventoryRows(items) {
+    inventoryBody.innerHTML = '';
+    if (!items.length) {
+      const emptyRow = document.createElement('tr');
+      const emptyCell = document.createElement('td');
+      emptyCell.colSpan = 10;
+      emptyCell.className = 'table-empty';
+      emptyCell.textContent = 'Nessun articolo trovato';
+      emptyRow.appendChild(emptyCell);
+      inventoryBody.appendChild(emptyRow);
+      return;
+    }
+
+    items.forEach((item) => {
       const row = document.createElement('tr');
       row.innerHTML = `
-        <td>${item.codice_articolo}</td>
-        <td>${item.descrizione || ""}</td>
-        <td>${item.unita_misura || ""}</td>
-        <td>${item.quantita}</td>
-        <td>${item.locazione || ""}</td>
-        <td>${fotoHTML}</td>
-        <td>${item.data_ingresso || ""}</td>
-        <td>${item.created_by || ""}</td>
-        <td>${item.modified_by || ""}</td>
-        <td>
-          <a href="edit_item.html?id=${item.id}" class="btn">Modifica</a>
-          <button class="btn btn-danger" onclick="deleteItem(${item.id})">Elimina</button>
-        </td>
+        <td>${item.codice_articolo || ''}</td>
+        <td>${item.descrizione || ''}</td>
+        <td>${item.unita_misura || ''}</td>
+        <td>${item.quantita || 0}</td>
+        <td>${item.locazione || ''}</td>
+        <td class="cell-attachment"></td>
+        <td>${item.data_ingresso || ''}</td>
+        <td>${item.created_by || ''}</td>
+        <td>${item.modified_by || ''}</td>
+        <td class="cell-actions"></td>
       `;
-      tbody.appendChild(row);
+
+      const attachmentCell = row.querySelector('.cell-attachment');
+      if (item.attachment && item.attachment.token) {
+        attachmentCell.appendChild(createAttachmentButton(item.attachment));
+      } else {
+        attachmentCell.textContent = 'Nessun file';
+      }
+
+      const actionsCell = row.querySelector('.cell-actions');
+      const editLink = document.createElement('a');
+      editLink.className = 'btn btn-secondary btn-small';
+      editLink.href = `edit_item.html?id=${item.id}`;
+      editLink.textContent = 'Modifica';
+
+      const deleteButton = document.createElement('button');
+      deleteButton.type = 'button';
+      deleteButton.className = 'btn btn-danger btn-small';
+      deleteButton.textContent = 'Elimina';
+      deleteButton.addEventListener('click', () => deleteItem(item.id));
+
+      actionsCell.appendChild(editLink);
+      actionsCell.appendChild(deleteButton);
+
+      inventoryBody.appendChild(row);
     });
   }
 
   async function deleteItem(itemId) {
-    if (confirm("Sei sicuro di voler eliminare questo articolo?")) {
-      let response;
-      try {
-        response = await fetch(`${API_BASE_URL}/inventory/${itemId}`, {
-          method: "DELETE",
-          headers: { "Authorization": "Bearer " + token }
-        });
-      } catch (error) {
-        console.error(error);
-        showPopup('Impossibile contattare il server. Riprova più tardi.', 'error', false);
-        return;
-      }
-      const data = await safeJson(response);
-      if (response.ok) {
-        showPopup(data.message || 'Articolo eliminato', 'success');
-        fetchInventory();
-      } else {
-        showPopup(data.message || 'Impossibile eliminare l\'articolo', 'error', false);
-      }
+    if (!confirm('Sei sicuro di voler eliminare questo articolo?')) {
+      return;
+    }
+    let response;
+    try {
+      response = await fetch(`${API_BASE_URL}/inventory/${itemId}`, {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer ' + token }
+      });
+    } catch (error) {
+      console.error(error);
+      showPopup('Impossibile contattare il server. Riprova più tardi.', 'error', false);
+      return;
+    }
+    const data = await safeJson(response);
+    if (response.ok) {
+      showPopup(data.message || 'Articolo eliminato', 'success');
+      fetchInventory();
+    } else {
+      showPopup(data.message || "Impossibile eliminare l'articolo", 'error', false);
     }
   }
-  window.deleteItem = deleteItem;
 
-  if (document.getElementById('filter-form')) {
-    document.getElementById('filter-form').addEventListener('submit', function(e) {
+  const filterForm = document.getElementById('filter-form');
+  if (filterForm) {
+    filterForm.addEventListener('submit', function(e) {
       e.preventDefault();
-      const codice = document.getElementById('filter-codice').value;
-      const descrizione = document.getElementById('filter-descrizione').value;
-      const locazione = document.getElementById('filter-locazione').value;
-      let queryParams = "?";
-      if (codice) queryParams += "codice_articolo=" + encodeURIComponent(codice) + "&";
-      if (descrizione) queryParams += "descrizione=" + encodeURIComponent(descrizione) + "&";
-      if (locazione) queryParams += "locazione=" + encodeURIComponent(locazione);
-      fetchInventory(queryParams);
+      const codice = document.getElementById('filter-codice').value.trim();
+      const descrizione = document.getElementById('filter-descrizione').value.trim();
+      const locazione = document.getElementById('filter-locazione').value.trim();
+      const params = new URLSearchParams();
+      if (codice) params.append('codice_articolo', codice);
+      if (descrizione) params.append('descrizione', descrizione);
+      if (locazione) params.append('locazione', locazione);
+      const query = params.toString();
+      fetchInventory(query ? `?${query}` : '');
     });
   }
 
   fetchInventory();
   document.getElementById('logout').addEventListener('click', function() {
     localStorage.removeItem('token');
-    window.location.href = "index.html";
+    window.location.href = 'index.html';
   });
 }
 

@@ -1,26 +1,44 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Gestionale - Registrazione</title>
+    <title>Gestionale FastCharge · Registrazione</title>
     <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-    <div id="container">
-        <h1>Registrazione</h1>
-        <form id="form-register">
-            <input type="text" id="register-username" placeholder="Username" required><br>
-            <input type="password" id="register-password" placeholder="Password" required><br>
-            <input type="password" id="register-confirm-password" placeholder="Conferma Password" required><br>
-            <p class="form-hint">Minimo 8 caratteri, includi maiuscole, minuscole e numeri.</p>
-            <button type="submit">Registrati</button>
-        </form>
-        <p>Hai già un account? <a class="btn" href="index.html">Accedi</a></p>
-        <div id="message"></div>
+    <div class="page-shell">
+        <main class="app-container auth-layout">
+            <section class="auth-hero">
+                <p class="eyebrow">Nuovo account</p>
+                <h1>Crea credenziali sicure</h1>
+                <p>Le password devono contenere almeno 8 caratteri con lettere maiuscole, minuscole e numeri. Usa un username semplice da ricordare.</p>
+            </section>
+            <section class="auth-card">
+                <p class="eyebrow">Registrazione</p>
+                <h1>Inizia subito</h1>
+                <form id="form-register" class="form-grid">
+                    <label class="input-group" for="register-username">
+                        <span class="input-label">Username</span>
+                        <input type="text" id="register-username" placeholder="Scegli un username" required>
+                    </label>
+                    <label class="input-group" for="register-password">
+                        <span class="input-label">Password</span>
+                        <input type="password" id="register-password" placeholder="••••••••" required>
+                    </label>
+                    <label class="input-group" for="register-confirm-password">
+                        <span class="input-label">Conferma Password</span>
+                        <input type="password" id="register-confirm-password" placeholder="Ripeti la password" required>
+                    </label>
+                    <p class="form-hint">Minimo 8 caratteri, includi maiuscole, minuscole e numeri.</p>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary full-width">Registrati</button>
+                    </div>
+                </form>
+                <p class="auth-switch">Hai già un account? <a class="btn btn-link" href="index.html">Accedi</a></p>
+                <div id="message"></div>
+            </section>
+        </main>
     </div>
     <script src="app.js"></script>
 </body>
-
 </html>

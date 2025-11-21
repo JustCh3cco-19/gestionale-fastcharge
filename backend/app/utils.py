@@ -5,6 +5,7 @@ import re
 from typing import Dict, Optional, Tuple
 
 from flask import current_app, request
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
@@ -41,9 +42,11 @@ def inventory_to_dict(item: "Inventory", include_tracking: bool = False) -> Dict
         'unita_misura': item.unita_misura,
         'quantita': item.quantita,
         'locazione': item.locazione,
-        'foto': item.foto,
         'data_ingresso': item.data_ingresso
     }
+    attachment_payload = _build_attachment_payload(item)
+    if attachment_payload:
+        data['attachment'] = attachment_payload
     if include_tracking:
         data['created_by'] = item.created_by
         data['modified_by'] = item.modified_by
@@ -84,3 +87,67 @@ def save_uploaded_file(file: Optional[FileStorage]) -> Optional[str]:
     destination = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
     file.save(destination)
     return filename
+
+
+def _get_file_serializer() -> URLSafeTimedSerializer:
+    secret_key = current_app.config.get('SECRET_KEY')
+    if not secret_key:
+        raise RuntimeError('SECRET_KEY non configurata')
+    return URLSafeTimedSerializer(secret_key=secret_key, salt='file-download')
+
+
+def generate_file_token(filename: Optional[str]) -> Optional[str]:
+    if not filename:
+        return None
+    serializer = _get_file_serializer()
+    payload = {'filename': filename}
+    return serializer.dumps(payload)
+
+
+def resolve_file_token(token: str) -> str:
+    serializer = _get_file_serializer()
+    max_age = current_app.config.get('FILE_TOKEN_TTL_SECONDS')
+    try:
+        if max_age and max_age > 0:
+            data = serializer.loads(token, max_age=max_age)
+        else:
+            data = serializer.loads(token)
+    except SignatureExpired as exc:
+        raise ValueError('Link scaduto, richiedi nuovamente il file') from exc
+    except BadSignature as exc:
+        raise ValueError('Token file non valido') from exc
+    filename = data.get('filename')
+    if not filename:
+        raise ValueError('Token file non valido')
+    return filename
+
+
+def _build_attachment_payload(item: "Inventory") -> Optional[Dict[str, str]]:
+    if not getattr(item, 'foto', None):
+        return None
+    token = generate_file_token(item.foto)
+    if not token:
+        return None
+
+    _, extension = os.path.splitext(item.foto)
+    extension = extension.lstrip('.').lower()
+    if not extension:
+        extension = 'bin'
+
+    if extension == 'pdf':
+        kind = 'pdf'
+    elif extension in {'png', 'jpg', 'jpeg', 'gif', 'webp'}:
+        kind = 'image'
+    else:
+        kind = 'file'
+
+    base_code = item.codice_articolo or 'allegato'
+    safe_base = re.sub(r'[^A-Za-z0-9_-]+', '-', base_code).strip('-') or 'allegato'
+    suggested_filename = f"{safe_base}.{extension}"
+
+    return {
+        'token': token,
+        'kind': kind,
+        'extension': extension,
+        'suggested_filename': suggested_filename
+    }

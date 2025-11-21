@@ -1,57 +1,109 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Gestionale - Inventario</title>
+    <title>Gestionale FastCharge · Inventario</title>
     <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-    <div id="container">
-        <h1>Inventario</h1>
-        <button id="logout">Logout</button>
-        <button id="export-btn">Esporta Inventario</button>
-        <!-- Bottone per mostrare/nascondere il filtro -->
-        <button id="toggle-filter">Filtri</button>
-        <!-- Container del filtro, inizialmente nascosto -->
-        <div id="filter-container" style="display: none;">
-            <form id="filter-form">
-                <input type="text" id="filter-codice" placeholder="Filtra per Codice">
-                <input type="text" id="filter-descrizione" placeholder="Filtra per Descrizione">
-                <input type="text" id="filter-locazione" placeholder="Filtra per Locazione">
-                <button type="submit">Filtra</button>
-            </form>
-        </div>
-        <!-- Tabella tradizionale -->
-        <table id="inventory-table">
-            <thead>
-                <tr>
-                    <th>Codice Articolo</th>
-                    <th>Descrizione</th>
-                    <th>Unità Misura</th>
-                    <th>Quantità Finale</th>
-                    <th>Locazione</th>
-                    <th>Foto / File</th>
-                    <th>Data Ingresso</th>
-                    <th>Creato da</th>
-                    <th>Modificato da</th>
-                    <th>Azioni</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- I dati verranno inseriti dinamicamente -->
-            </tbody>
-        </table>
-        <p><a class="btn" href="add_item.html">Aggiungi Nuovo Articolo</a></p>
-        <p><a class="btn" href="folder_view.html">Lista per Locazione</a></p>
+    <div class="page-shell">
+        <main class="app-container">
+            <header class="app-header card">
+                <div class="brand">
+                    <span class="brand__logo">⚡</span>
+                    <div>
+                        <p class="eyebrow">Gestionale FastCharge</p>
+                        <h1 class="brand__title">Inventario</h1>
+                        <p class="stat-footnote">Monitora articoli, allegati e movimenti in tempo reale.</p>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <a class="btn btn-primary" href="add_item.html">Nuovo articolo</a>
+                    <a class="btn btn-secondary" href="folder_view.html">Vista per locazione</a>
+                    <button id="logout" class="btn btn-danger" type="button">Logout</button>
+                </div>
+            </header>
+
+            <section class="stats-grid">
+                <article class="stat-card">
+                    <p class="stat-label">Articoli registrati</p>
+                    <p class="stat-value" id="stat-items">0</p>
+                    <p class="stat-footnote">Totale record presenti</p>
+                </article>
+                <article class="stat-card">
+                    <p class="stat-label">Quantità disponibili</p>
+                    <p class="stat-value" id="stat-quantity">0</p>
+                    <p class="stat-footnote">Carico - scarico aggregato</p>
+                </article>
+                <article class="stat-card">
+                    <p class="stat-label">Locazioni attive</p>
+                    <p class="stat-value" id="stat-locations">0</p>
+                    <p class="stat-footnote">Aggiornato alle <span id="stat-updated">--:--</span></p>
+                </article>
+            </section>
+
+            <section id="filter-container" class="panel filter-panel" data-filter-panel>
+                <div class="panel__header">
+                    <div>
+                        <p class="eyebrow">Ricerca rapida</p>
+                        <h2>Filtri inventario</h2>
+                    </div>
+                    <button id="toggle-filter" class="btn btn-ghost" type="button" aria-expanded="false">Mostra filtri</button>
+                </div>
+                <form id="filter-form" class="form-grid" data-collapsible>
+                    <label class="input-group" for="filter-codice">
+                        <span class="input-label">Codice articolo</span>
+                        <input type="text" id="filter-codice" placeholder="Es. FC-1001">
+                    </label>
+                    <label class="input-group" for="filter-descrizione">
+                        <span class="input-label">Descrizione</span>
+                        <input type="text" id="filter-descrizione" placeholder="Cerca per testo libero">
+                    </label>
+                    <label class="input-group" for="filter-locazione">
+                        <span class="input-label">Locazione</span>
+                        <input type="text" id="filter-locazione" placeholder="Area o scaffale">
+                    </label>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Applica filtri</button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="table-card">
+                <div class="section-header">
+                    <div>
+                        <p class="eyebrow">Lista aggiornata</p>
+                        <h2>Articoli presenti</h2>
+                    </div>
+                    <button id="export-btn" class="btn btn-secondary" type="button">Esporta CSV</button>
+                </div>
+                <div class="table-wrapper">
+                    <table id="inventory-table">
+                        <thead>
+                            <tr>
+                                <th>Codice Articolo</th>
+                                <th>Descrizione</th>
+                                <th>Unità Misura</th>
+                                <th>Quantità</th>
+                                <th>Locazione</th>
+                                <th>Allegato</th>
+                                <th>Data Ingresso</th>
+                                <th>Creato da</th>
+                                <th>Modificato da</th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
     </div>
-    <!-- Modal per visualizzare la foto ingrandita (opzionale) -->
     <div id="modal" class="modal" style="display:none;">
         <span class="close">&times;</span>
-        <img class="modal-content" id="modal-image">
+        <img class="modal-content" id="modal-image" alt="Anteprima">
     </div>
     <script src="app.js"></script>
 </body>
-
 </html>

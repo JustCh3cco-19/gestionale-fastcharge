@@ -15,3 +15,4 @@ class Config:
     TOKEN_TTL_SECONDS = int(os.getenv('TOKEN_TTL_SECONDS', 60 * 60 * 24))
     DB_INIT_MAX_RETRIES = int(os.getenv('DB_INIT_MAX_RETRIES', 10))
     DB_INIT_RETRY_DELAY = float(os.getenv('DB_INIT_RETRY_DELAY', 2))
+    FILE_TOKEN_TTL_SECONDS = int(os.getenv('FILE_TOKEN_TTL_SECONDS', 60 * 60))

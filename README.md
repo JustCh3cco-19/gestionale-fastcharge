@@ -192,7 +192,7 @@ Ensure the backend API is reachable at `http://localhost:5000`. Update `API_BASE
 
 - On Linux you may need `sudo` to run Docker commands.
 - Item quantities are calculated as `carico - scarico` and only accept integers ≥ 0 to avoid rounding issues.
-- Uploaded files are served from `http://localhost:${BACKEND_PORT}/uploads/<filename>`.
+- Uploaded files are served through signed links (`/api/files/<token>`) so extensions never appear in the URL.
 - Login tokens expire after 24 hours (configurable) and are stored in PostgreSQL.
 - To completely reset the Docker environment: `docker-compose down -v && rm -rf backend/uploads/*` (beware: this wipes data).
 

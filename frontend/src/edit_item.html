@@ -1,30 +1,70 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Gestionale - Modifica Articolo</title>
+    <title>Gestionale FastCharge · Modifica articolo</title>
     <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-    <div id="container">
-        <h1>Modifica Articolo</h1>
-        <form id="form-edit-item" enctype="multipart/form-data">
-            <input type="text" id="codice_articolo" name="codice_articolo" placeholder="Codice Articolo" required><br>
-            <input type="text" id="descrizione" name="descrizione" placeholder="Descrizione"><br>
-            <input type="text" id="unita_misura" name="unita_misura" placeholder="Unità di Misura"><br>
-            <input type="text" id="locazione" name="locazione" placeholder="Locazione"><br>
-            <input type="file" id="foto" name="foto" accept="image/*,application/pdf">
-            <input type="date" id="data_ingresso" name="data_ingresso" required><br>
-            <input type="number" id="carico" name="carico" placeholder="Nuovo Carico (aggiungi)" step="1" min="0"><br>
-            <input type="number" id="scarico" name="scarico" placeholder="Nuovo Scarico (sottrai)" step="1" min="0"><br>
-            <button type="submit">Aggiorna Articolo</button>
-        </form>
-        <div id="message"></div>
-        <p><a class="btn" href="inventory.html">Torna all'Inventario</a></p>
+    <div class="page-shell">
+        <main class="app-container">
+            <header class="app-header card">
+                <div class="brand">
+                    <span class="brand__logo">✏️</span>
+                    <div>
+                        <p class="eyebrow">Magazzino</p>
+                        <h1 class="brand__title">Modifica articolo</h1>
+                        <p class="stat-footnote">Aggiorna i dati e allega nuovi documenti, se necessario.</p>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <a class="btn btn-secondary" href="inventory.html">Torna all'inventario</a>
+                </div>
+            </header>
+
+            <section class="inventory-form">
+                <form id="form-edit-item" class="form-grid" enctype="multipart/form-data">
+                    <label class="input-group" for="codice_articolo">
+                        <span class="input-label">Codice articolo *</span>
+                        <input type="text" id="codice_articolo" name="codice_articolo" required>
+                    </label>
+                    <label class="input-group" for="descrizione">
+                        <span class="input-label">Descrizione</span>
+                        <input type="text" id="descrizione" name="descrizione">
+                    </label>
+                    <label class="input-group" for="unita_misura">
+                        <span class="input-label">Unità di misura</span>
+                        <input type="text" id="unita_misura" name="unita_misura">
+                    </label>
+                    <label class="input-group" for="locazione">
+                        <span class="input-label">Locazione</span>
+                        <input type="text" id="locazione" name="locazione">
+                    </label>
+                    <label class="input-group" for="data_ingresso">
+                        <span class="input-label">Data ingresso *</span>
+                        <input type="date" id="data_ingresso" name="data_ingresso" required>
+                    </label>
+                    <label class="input-group" for="carico">
+                        <span class="input-label">Nuovo carico</span>
+                        <input type="number" id="carico" name="carico" placeholder="0" min="0" step="1">
+                    </label>
+                    <label class="input-group" for="scarico">
+                        <span class="input-label">Nuovo scarico</span>
+                        <input type="number" id="scarico" name="scarico" placeholder="0" min="0" step="1">
+                    </label>
+                    <label class="input-group" for="foto">
+                        <span class="input-label">Allega nuovo file</span>
+                        <input type="file" id="foto" name="foto" accept="image/*,application/pdf">
+                    </label>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Aggiorna</button>
+                        <a class="btn btn-ghost" href="inventory.html">Annulla</a>
+                    </div>
+                </form>
+                <div id="message"></div>
+            </section>
+        </main>
     </div>
     <script src="app.js"></script>
 </body>
-
 </html>

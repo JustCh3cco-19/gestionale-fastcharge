@@ -10,8 +10,6 @@ from pathlib import Path
 
 from waitress import serve
 
-from app import create_app
-
 DEFAULT_PORT = 5000
 
 
@@ -59,6 +57,9 @@ def _auto_open_browser(port: int) -> None:
 def main() -> None:
     data_dir = _runtime_dir()
     _ensure_env(data_dir)
+
+    # Import after environment defaults are set so Config picks up the SQLite URL when packaging.
+    from app import create_app
 
     frontend_root = _resource_path('frontend')
     app = create_app(frontend_root=frontend_root)

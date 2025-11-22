@@ -717,6 +717,84 @@ if (document.getElementById('inventory-table')) {
     }
   }
 
+  const exportCsvBtn = document.getElementById('export-btn');
+  const exportBundleBtn = document.getElementById('export-bundle-btn');
+  const importBundleInput = document.getElementById('import-bundle-input');
+
+  if (exportCsvBtn) {
+    exportCsvBtn.addEventListener('click', async function() {
+      let response;
+      try {
+        response = await fetch(`${API_BASE_URL}/inventory/export`, {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+      } catch (error) {
+        console.error(error);
+        forceLogoutAndRedirect('Sessione scaduta o server non raggiungibile. Effettua di nuovo il login.');
+        return;
+      }
+      if (!response.ok) {
+        const errorText = await response.text();
+        showPopup("Errore durante l'export: " + errorText, 'error', false);
+        return;
+      }
+      const blob = await response.blob();
+      triggerDownload(window.URL.createObjectURL(blob), 'inventario.csv');
+    });
+  }
+
+  if (exportBundleBtn) {
+    exportBundleBtn.addEventListener('click', async function() {
+      let response;
+      try {
+        response = await fetch(`${API_BASE_URL}/inventory/export/bundle`, {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+      } catch (error) {
+        console.error(error);
+        forceLogoutAndRedirect('Sessione scaduta o server non raggiungibile. Effettua di nuovo il login.');
+        return;
+      }
+      if (!response.ok) {
+        const errorText = await response.text();
+        showPopup("Errore durante l'export pacchetto: " + errorText, 'error', false);
+        return;
+      }
+      const blob = await response.blob();
+      triggerDownload(window.URL.createObjectURL(blob), 'inventario_bundle.zip');
+    });
+  }
+
+  if (importBundleInput) {
+    importBundleInput.addEventListener('change', async function(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const formData = new FormData();
+      formData.append('file', file);
+      let response;
+      try {
+        response = await fetch(`${API_BASE_URL}/inventory/import`, {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token },
+          body: formData
+        });
+      } catch (error) {
+        console.error(error);
+        forceLogoutAndRedirect('Sessione scaduta o server non raggiungibile. Effettua di nuovo il login.');
+        return;
+      } finally {
+        importBundleInput.value = '';
+      }
+      const data = await safeJson(response);
+      if (!response.ok) {
+        showPopup(data.message || 'Import fallito. Usa un archivio esportato dal gestionale.', 'error', false);
+        return;
+      }
+      showPopup(data.message || 'Import completato', 'success');
+      fetchInventory();
+    });
+  }
+
   if (!urlParams.size) {
     fetchInventory();
   }
@@ -762,37 +840,6 @@ if (document.getElementById('tree-view-root')) {
     localStorage.removeItem('token');
     window.location.href = "index.html";
   });
-}
-
-// --- ESPORTA INVENTARIO ---
-if (document.getElementById('export-btn')) {
-  async function exportInventory() {
-    const token = localStorage.getItem('token');
-    let response;
-    try {
-      response = await fetch(`${API_BASE_URL}/inventory/export`, {
-        headers: { "Authorization": "Bearer " + token }
-      });
-    } catch (error) {
-      console.error(error);
-      forceLogoutAndRedirect('Sessione scaduta o server non raggiungibile. Effettua di nuovo il login.');
-      return;
-    }
-    if (!response.ok) {
-      const errorText = await response.text();
-      showPopup("Errore durante l'export: " + errorText, 'error', false);
-      return;
-    }
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = "inventario.csv";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  }
-  document.getElementById('export-btn').addEventListener('click', exportInventory);
 }
 
 // --- AGGIUNTA ARTICOLO (add_item.html) ---

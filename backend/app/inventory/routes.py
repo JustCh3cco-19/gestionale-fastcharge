@@ -1,13 +1,11 @@
 import csv
-from io import StringIO
+import json
+import zipfile
+from datetime import datetime
+from io import BytesIO, StringIO
+from pathlib import Path
 
-from flask import (
-    Blueprint,
-    Response,
-    g,
-    jsonify,
-    request,
-)
+from flask import Blueprint, Response, current_app, g, jsonify, request, send_file
 
 from ..auth.decorators import token_required
 from ..extensions import db
@@ -167,3 +165,167 @@ def export_inventory():
     response = Response(output, mimetype='text/csv')
     response.headers['Content-Disposition'] = 'attachment; filename=inventario.csv'
     return response
+
+
+@bp.route('/inventory/export/bundle', methods=['GET'])
+@token_required
+def export_inventory_bundle():
+    items = Inventory.query.all()
+    bundle = _build_export_bundle(items)
+    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    filename = f'inventario_bundle_{timestamp}.zip'
+    return send_file(bundle, mimetype='application/zip', as_attachment=True, download_name=filename)
+
+
+@bp.route('/inventory/import', methods=['POST'])
+@token_required
+def import_inventory_bundle():
+    uploaded = request.files.get('file')
+    if not uploaded or not uploaded.filename:
+        return jsonify({'message': 'Carica un archivio .zip esportato dall\'inventario'}), 400
+    if not uploaded.filename.lower().endswith('.zip'):
+        return jsonify({'message': 'Il file deve essere un archivio .zip'}), 400
+
+    try:
+        payload = uploaded.read()
+        zf = zipfile.ZipFile(BytesIO(payload))
+    except zipfile.BadZipFile:
+        return jsonify({'message': 'Archivio non valido o corrotto'}), 400
+
+    if 'manifest.json' not in zf.namelist():
+        return jsonify({'message': 'Manifest mancante nell\'archivio'}), 400
+    try:
+        manifest = json.loads(zf.read('manifest.json'))
+    except Exception:
+        return jsonify({'message': 'Manifest non leggibile'}), 400
+
+    items = manifest.get('items')
+    if not isinstance(items, list):
+        return jsonify({'message': 'Manifest non valido: campo "items" mancante'}), 400
+
+    uploads_dir = Path(current_app.config['UPLOAD_FOLDER'])
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        prepared_items = _prepare_items_for_import(items, zf)
+        _replace_inventory(prepared_items, uploads_dir)
+    except ValueError as exc:
+        db.session.rollback()
+        return jsonify({'message': str(exc)}), 400
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.exception("Errore durante l'import dell'inventario")
+        return jsonify({'message': 'Errore durante l\'importazione dell\'inventario'}), 500
+
+    return jsonify({'message': 'Inventario importato con successo', 'items_imported': len(items)}), 200
+
+
+def _serialise_item_for_bundle(item: Inventory) -> dict:
+    return {
+        'codice_articolo': item.codice_articolo,
+        'descrizione': item.descrizione,
+        'unita_misura': item.unita_misura,
+        'quantita': item.quantita,
+        'locazione': item.locazione,
+        'data_ingresso': item.data_ingresso,
+        'carico': item.carico,
+        'scarico': item.scarico,
+        'foto': item.foto,
+        'created_by': item.created_by,
+        'modified_by': item.modified_by,
+    }
+
+
+def _build_export_bundle(items) -> BytesIO:
+    uploads_dir = Path(current_app.config['UPLOAD_FOLDER'])
+    manifest = {
+        'version': 1,
+        'generated_at': datetime.utcnow().isoformat() + 'Z',
+        'items': [_serialise_item_for_bundle(item) for item in items],
+    }
+    memory_file = BytesIO()
+    with zipfile.ZipFile(memory_file, mode='w', compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr('manifest.json', json.dumps(manifest, ensure_ascii=False, indent=2))
+        for item in items:
+            if not item.foto:
+                continue
+            file_path = uploads_dir / item.foto
+            if file_path.exists():
+                archive.write(file_path, arcname=f'uploads/{item.foto}')
+    memory_file.seek(0)
+    return memory_file
+
+
+def _prepare_items_for_import(items, archive: zipfile.ZipFile):
+    prepared = []
+    for idx, raw in enumerate(items, start=1):
+        code = (raw.get('codice_articolo') or '').strip()
+        if not code:
+            raise ValueError(f'Manifest non valido: codice_articolo mancante alla riga {idx}')
+        carico = _safe_import_int(raw.get('carico'))
+        scarico = _safe_import_int(raw.get('scarico'))
+        foto_name = raw.get('foto')
+        attachment_bytes = None
+        if foto_name:
+            zip_path = f'uploads/{foto_name}'
+            if zip_path not in archive.namelist():
+                raise ValueError(f'Manifest non valido: allegato "{foto_name}" non presente nell\'archivio')
+            with archive.open(zip_path) as src:
+                attachment_bytes = src.read()
+        prepared.append({
+            'codice_articolo': code,
+            'descrizione': raw.get('descrizione'),
+            'unita_misura': raw.get('unita_misura'),
+            'locazione': raw.get('locazione'),
+            'data_ingresso': raw.get('data_ingresso'),
+            'carico': carico,
+            'scarico': scarico,
+            'created_by': raw.get('created_by'),
+            'modified_by': raw.get('modified_by'),
+            'foto': foto_name,
+            'attachment_bytes': attachment_bytes,
+        })
+    return prepared
+
+
+def _replace_inventory(prepared_items, uploads_dir: Path) -> None:
+    _clear_uploads_dir(uploads_dir)
+    db.session.query(Inventory).delete()
+    db.session.flush()
+
+    for item in prepared_items:
+        record = Inventory(
+            codice_articolo=item['codice_articolo'],
+            descrizione=item.get('descrizione'),
+            unita_misura=item.get('unita_misura'),
+            locazione=item.get('locazione'),
+            data_ingresso=item.get('data_ingresso'),
+            carico=item['carico'],
+            scarico=item['scarico'],
+            created_by=item.get('created_by'),
+            modified_by=item.get('modified_by'),
+        )
+        record.quantita = record.carico - record.scarico
+
+        if item.get('foto') and item.get('attachment_bytes') is not None:
+            destination = uploads_dir / item['foto']
+            with open(destination, 'wb') as dst:
+                dst.write(item['attachment_bytes'])
+            record.foto = item['foto']
+
+        db.session.add(record)
+
+    db.session.commit()
+
+
+def _clear_uploads_dir(uploads_dir: Path) -> None:
+    for child in uploads_dir.iterdir():
+        if child.is_file():
+            child.unlink()
+
+
+def _safe_import_int(value) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError) as exc:
+        raise ValueError('Manifest non valido: usa solo numeri interi per carico/scarico') from exc

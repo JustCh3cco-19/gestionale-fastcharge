@@ -3,16 +3,28 @@
 > **Inventory management system with a Flask + PostgreSQL backend and a static HTML/CSS/JS frontend.**
 
 ## 📚 Quick Index
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Project Structure](#project-structure)
-- [Preparing the `.env` Files](#preparing-the-env-files)
-- [Running with Docker](#running-with-docker)
-- [Installing Without Docker](#installing-without-docker)
-- [Key Features](#key-features)
-- [Database & Persistence](#database--persistence)
-- [Operational Notes](#operational-notes)
-- [Reference API](#reference-api)
+- [Gestionale FastCharge](#gestionale-fastcharge)
+  - [📚 Quick Index](#-quick-index)
+  - [Overview](#overview)
+  - [Architecture](#architecture)
+  - [Project Structure](#project-structure)
+  - [Preparing the `.env` Files](#preparing-the-env-files)
+  - [Running with Docker](#running-with-docker)
+    - [Rebuilding Images](#rebuilding-images)
+  - [Installing Without Docker](#installing-without-docker)
+    - [1. Prerequisites](#1-prerequisites)
+    - [2. Database Setup](#2-database-setup)
+    - [3. Flask Backend](#3-flask-backend)
+    - [4. Static Frontend](#4-static-frontend)
+  - [Windows Executable Build](#windows-executable-build)
+    - [Requirements](#requirements)
+    - [Build steps](#build-steps)
+    - [Runtime behaviour](#runtime-behaviour)
+  - [Inventory Export/Import](#inventory-exportimport)
+  - [Key Features](#key-features)
+  - [Database \& Persistence](#database--persistence)
+  - [Operational Notes](#operational-notes)
+  - [Reference API](#reference-api)
 
 ---
 
@@ -166,11 +178,52 @@ Ensure the backend API is reachable at `http://localhost:5000`. Update `API_BASE
 
 ---
 
+## Windows Executable Build
+
+You can ship Gestionale FastCharge as a single Windows executable that embeds the Flask backend, the static frontend, and a local SQLite database.
+
+### Requirements
+
+- Windows 10/11 with Python 3.11+
+- PowerShell
+
+### Build steps
+
+```powershell
+git clone https://github.com/JustCh3cco-19/gestionale-fastcharge.git
+cd gestionale-fastcharge
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r backend\requirements.txt
+pyinstaller fastcharge.spec --noconfirm
+```
+
+The executable is generated in `dist\GestionaleFastCharge\GestionaleFastCharge.exe`. Distribute the entire folder to keep all support files together (PyInstaller adds runtime libraries next to the EXE).
+
+### Runtime behaviour
+
+- On launch the app hosts itself on `http://127.0.0.1:5000` using Waitress and automatically opens the browser.
+- User data, uploads, and the SQLite DB live in `%APPDATA%\GestionaleFastCharge`, so they persist between runs.
+- Set optional environment variables (e.g. `PORT`, `DATABASE_URL`, `SECRET_KEY`) before launching the executable to override defaults.
+
+---
+
+## Inventory Export/Import
+
+Use the bundled export/import to share the latest inventory (with attachments) when working offline or across multiple standalone installs.
+
+- Export: `GET /api/inventory/export/bundle` or use the **Esporta pacchetto** button in `inventory.html`. Produces a `.zip` with a manifest and all referenced uploads.
+- Import: `POST /api/inventory/import` with `file=<zip>` or use the **Importa pacchetto** button. It replaces the current inventory and uploads with the content of the archive.
+- CSV export remains available at `GET /api/inventory/export` for quick data-only extracts.
+
+---
+
 ## Key Features
 
 - Token-based authentication (register/login/logout) with strong password policy.
 - Full inventory CRUD with integer-only stock movements and author/modifier tracking.
 - Image/PDF uploads exposed through a dedicated download endpoint.
+- Offline-ready import/export bundle (ZIP) including attachments to keep multiple instances aligned.
 - Filtering by code, description, location, plus a tree-view grouped by location.
 - Inventory CSV export.
 - Responsive pop-up feedback for every significant frontend action.
@@ -209,5 +262,7 @@ Ensure the backend API is reachable at `http://localhost:5000`. Update `API_BASE
 - `PUT /api/inventory/<id>` – update an item (JSON or multipart/form-data)
 - `DELETE /api/inventory/<id>` – delete an item
 - `GET /api/inventory/export` – download the inventory as CSV
+- `GET /api/inventory/export/bundle` – export full inventory + attachments as ZIP
+- `POST /api/inventory/import` – import a ZIP bundle and replace the current inventory
 
 Document any extensions by adding new sections to this wiki and linking them in the index above.

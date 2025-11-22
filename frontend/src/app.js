@@ -1,5 +1,21 @@
+function resolveApiBaseUrl() {
+  const override = window.API_BASE_URL || window.__API_BASE_URL__;
+  if (override) return override.replace(/\/+$/, '');
+
+  const { origin, protocol, hostname, port } = window.location;
+  if (protocol === 'file:') {
+    return 'http://localhost:5000/api';
+  }
+
+  const baseOrigin = port === '8080'
+    ? `${protocol}//${hostname}:5000`
+    : origin;
+
+  return `${baseOrigin.replace(/\/$/, '')}/api`;
+}
+
 // URL base per le API del backend
-const API_BASE_URL = "http://localhost:5000/api";
+const API_BASE_URL = resolveApiBaseUrl();
 
 const POPUP_VISIBLE_CLASS = 'visible';
 let popupOverlay = null;
@@ -70,6 +86,14 @@ function showPopup(message, type = 'info', autoClose = true) {
 window.hidePopup = hidePopup;
 window.showPopup = showPopup;
 
+function forceLogoutAndRedirect(message) {
+  localStorage.removeItem('token');
+  showPopup(message || 'Sessione scaduta. Effettua nuovamente il login.', 'error', false);
+  setTimeout(() => {
+    window.location.href = 'index.html';
+  }, 1200);
+}
+
 function isValidUsername(username) {
   return /^[A-Za-z0-9_.-]{3,64}$/.test(username);
 }
@@ -81,6 +105,56 @@ function isPasswordStrong(password) {
 function formatNumber(value) {
   const formatter = new Intl.NumberFormat('it-IT');
   return formatter.format(Number(value) || 0);
+}
+
+function parseDateParts(value) {
+  if (!value) return null;
+  const trimmed = String(value).trim();
+  const ddmmyyyy = /^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/;
+  const yyyymmdd = /^(\d{4})[\/\-](\d{2})[\/\-](\d{2})$/;
+  let match = trimmed.match(ddmmyyyy);
+  if (match) {
+    const [, dd, mm, yyyy] = match;
+    return { day: dd, month: mm, year: yyyy };
+  }
+  match = trimmed.match(yyyymmdd);
+  if (match) {
+    const [, yyyy, mm, dd] = match;
+    return { day: dd, month: mm, year: yyyy };
+  }
+  return null;
+}
+
+function toDdMmYyyy(parts) {
+  if (!parts) return '';
+  const { day, month, year } = parts;
+  return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+}
+
+function formatDateForDisplay(value) {
+  const parts = parseDateParts(value);
+  return parts ? toDdMmYyyy(parts) : '';
+}
+
+function toBackendDate(value) {
+  const parts = parseDateParts(value);
+  if (parts) return toDdMmYyyy(parts);
+  // fallback: try Date parsing
+  const date = new Date(value);
+  if (!Number.isNaN(date.getTime())) {
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const yyyy = String(date.getFullYear());
+    return `${dd}/${mm}/${yyyy}`;
+  }
+  return '';
+}
+
+function toInputDateValue(value) {
+  const parts = parseDateParts(value);
+  if (!parts) return '';
+  const { day, month, year } = parts;
+  return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
 }
 
 function updateInventoryStats(items) {
@@ -118,7 +192,7 @@ async function openAttachmentFile(fileToken, suggestedName, kind) {
     });
   } catch (error) {
     console.error(error);
-    showPopup('Impossibile scaricare il file in questo momento.', 'error', false);
+    forceLogoutAndRedirect('Sessione scaduta o server offline. Accedi di nuovo.');
     return;
   }
 
@@ -187,7 +261,87 @@ if (document.getElementById('form-login')) {
 
 // --- REGISTRAZIONE (register.html) ---
 if (document.getElementById('form-register')) {
-  document.getElementById('form-register').addEventListener('submit', async function(e) {
+  const registerForm = document.getElementById('form-register');
+  const usernameInput = document.getElementById('register-username');
+  const passwordInput = document.getElementById('register-password');
+  const confirmInput = document.getElementById('register-confirm-password');
+  const usernameFeedbackEl = document.getElementById('username-feedback');
+  const passwordFeedbackEl = document.getElementById('password-feedback');
+  const passwordMatchEl = document.getElementById('password-match-feedback');
+  let usernameCheckTimeout = null;
+
+  const setHint = (el, message, isOk) => {
+    if (!el) return;
+    el.textContent = message || '';
+    el.classList.remove('hint-ok', 'hint-error');
+    if (!message) return;
+    el.classList.add(isOk ? 'hint-ok' : 'hint-error');
+  };
+
+  const refreshPasswordHints = () => {
+    const pwd = passwordInput ? passwordInput.value : '';
+    const confirm = confirmInput ? confirmInput.value : '';
+
+    if (!pwd) {
+      setHint(passwordFeedbackEl, '', false);
+    } else if (isPasswordStrong(pwd)) {
+      setHint(passwordFeedbackEl, 'Password valida', true);
+    } else {
+      setHint(passwordFeedbackEl, 'Serve almeno 1 maiuscola, 1 minuscola e 1 numero (min 8 caratteri)', false);
+    }
+
+    if (!confirm) {
+      setHint(passwordMatchEl, '', false);
+    } else if (pwd === confirm) {
+      setHint(passwordMatchEl, 'Le password coincidono', true);
+    } else {
+      setHint(passwordMatchEl, 'Le password non coincidono', false);
+    }
+  };
+
+  passwordInput?.addEventListener('input', refreshPasswordHints);
+  confirmInput?.addEventListener('input', refreshPasswordHints);
+  refreshPasswordHints();
+
+  const checkUsernameAvailability = async () => {
+    if (!usernameInput) return;
+    const username = usernameInput.value.trim();
+    if (!username) {
+      setHint(usernameFeedbackEl, '', false);
+      return;
+    }
+    if (!isValidUsername(username)) {
+      setHint(usernameFeedbackEl, 'Username non valido', false);
+      return;
+    }
+    try {
+      const response = await fetch(`${API_BASE_URL}/username-available?username=${encodeURIComponent(username)}`);
+      const data = await safeJson(response);
+      if (!response.ok) {
+        setHint(usernameFeedbackEl, data.message || 'Impossibile verificare', false);
+        return;
+      }
+      if (data.available) {
+        setHint(usernameFeedbackEl, 'Username disponibile', true);
+      } else {
+        setHint(usernameFeedbackEl, 'Username già in uso', false);
+      }
+    } catch (error) {
+      console.error(error);
+      setHint(usernameFeedbackEl, 'Impossibile verificare', false);
+    }
+  };
+
+  usernameInput?.addEventListener('input', () => {
+    if (usernameCheckTimeout) clearTimeout(usernameCheckTimeout);
+    usernameCheckTimeout = setTimeout(checkUsernameAvailability, 450);
+  });
+  usernameInput?.addEventListener('blur', () => {
+    if (usernameCheckTimeout) clearTimeout(usernameCheckTimeout);
+    checkUsernameAvailability();
+  });
+
+  registerForm.addEventListener('submit', async function(e) {
     e.preventDefault();
     const username = document.getElementById('register-username').value;
     const password = document.getElementById('register-password').value;
@@ -229,6 +383,54 @@ if (document.getElementById('form-register')) {
   });
 }
 
+// --- RESET PASSWORD (reset_password.html) ---
+if (document.getElementById('form-reset')) {
+  document.getElementById('form-reset').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const username = document.getElementById('reset-username').value;
+    const newPassword = document.getElementById('reset-password').value;
+    const confirmPassword = document.getElementById('reset-confirm-password').value;
+
+    if (!isValidUsername(username)) {
+      showPopup('Username non valido. Usa 3-64 caratteri alfanumerici, ".", "-" o "_".', 'error', false);
+      return;
+    }
+    if (!isPasswordStrong(newPassword)) {
+      showPopup('Password troppo debole. Usa almeno 8 caratteri con maiuscole, minuscole e numeri.', 'error', false);
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      showPopup('Le password non coincidono.', 'error', false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username,
+          new_password: newPassword,
+          confirm_password: confirmPassword
+        })
+      });
+      const data = await safeJson(response);
+      if (response.ok) {
+        showPopup(data.message || 'Password reimpostata', 'success');
+        document.getElementById('form-reset').reset();
+        setTimeout(() => {
+          window.location.href = "index.html";
+        }, 2000);
+      } else {
+        showPopup(data.message || 'Impossibile reimpostare la password', 'error', false);
+      }
+    } catch (error) {
+      console.error(error);
+      showPopup('Impossibile contattare il server. Riprova più tardi.', 'error', false);
+    }
+  });
+}
+
 // --- Toggle del filtro in inventory.html ---
 (function initFilterToggle() {
   const toggleButton = document.getElementById('toggle-filter');
@@ -262,7 +464,37 @@ function buildTreeView(items) {
   // Crea un <li> per ogni gruppo di locazione
   for (const locationName in groups) {
     const locItem = document.createElement("li");
-    locItem.textContent = locationName;
+
+    const header = document.createElement('div');
+    header.className = 'tree-location';
+    header.style.display = 'flex';
+    header.style.alignItems = 'center';
+    header.style.gap = '8px';
+
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.textContent = '▶';
+    toggle.className = 'btn btn-ghost btn-small';
+    toggle.style.padding = '4px 10px';
+    toggle.style.fontSize = '12px';
+
+    const title = document.createElement('span');
+    title.textContent = locationName;
+    title.style.flex = '1';
+
+    const qrButton = document.createElement('button');
+    qrButton.type = 'button';
+    qrButton.className = 'btn btn-secondary btn-small';
+    qrButton.textContent = 'QR area';
+    qrButton.addEventListener('click', (event) => {
+      event.stopPropagation();
+      generateAreaQr(locationName);
+    });
+
+    header.appendChild(toggle);
+    header.appendChild(title);
+    header.appendChild(qrButton);
+    locItem.appendChild(header);
 
     const articleList = document.createElement("ul");
     groups[locationName].forEach(article => {
@@ -273,10 +505,36 @@ function buildTreeView(items) {
 
     locItem.appendChild(articleList);
     locItem.addEventListener("click", function(e) {
+      if (e.target === qrButton) return;
       e.stopPropagation();
       this.classList.toggle("expanded");
+      toggle.textContent = this.classList.contains('expanded') ? '▼' : '▶';
     });
     root.appendChild(locItem);
+  }
+}
+
+function generateAreaQr(locationName) {
+  const baseUrl = `${window.location.origin}/inventory.html?locazione=${encodeURIComponent(locationName)}`;
+  if (typeof qrcode === 'undefined') {
+    showPopup('Generatore QR non disponibile offline.', 'error', false);
+    return;
+  }
+  try {
+    const qr = qrcode(0, 'M');
+    qr.addData(baseUrl);
+    qr.make();
+    const dataUrl = qr.createDataURL(6, 2);
+    const qrWindow = window.open('', '_blank');
+    if (!qrWindow) {
+      showPopup('Impossibile aprire il QR. Controlla il blocco popup.', 'error', false);
+      return;
+    }
+    qrWindow.document.write(`<title>QR ${locationName}</title><img alt="QR ${locationName}" src="${dataUrl}" /><p>${locationName}</p><p style="font-size:12px;">Link: ${baseUrl}</p>`);
+    qrWindow.document.close();
+  } catch (error) {
+    console.error(error);
+    showPopup('Impossibile generare il QR in locale.', 'error', false);
   }
 }
 
@@ -289,6 +547,7 @@ if (document.getElementById('inventory-table')) {
 
   const inventoryTable = document.getElementById('inventory-table');
   const inventoryBody = inventoryTable.querySelector('tbody');
+  const urlParams = new URLSearchParams(window.location.search);
 
   inventoryBody.addEventListener('click', (event) => {
     const attachmentTrigger = event.target.closest('[data-action="open-attachment"]');
@@ -311,7 +570,7 @@ if (document.getElementById('inventory-table')) {
       });
     } catch (error) {
       console.error(error);
-      showPopup('Impossibile contattare il server. Riprova più tardi.', 'error', false);
+      forceLogoutAndRedirect('Sessione scaduta o server non raggiungibile. Effettua di nuovo il login.');
       return;
     }
     if (!response.ok) {
@@ -370,7 +629,7 @@ if (document.getElementById('inventory-table')) {
         <td>${item.quantita || 0}</td>
         <td>${item.locazione || ''}</td>
         <td class="cell-attachment"></td>
-        <td>${item.data_ingresso || ''}</td>
+        <td>${formatDateForDisplay(item.data_ingresso)}</td>
         <td>${item.created_by || ''}</td>
         <td>${item.modified_by || ''}</td>
         <td class="cell-actions"></td>
@@ -414,7 +673,7 @@ if (document.getElementById('inventory-table')) {
       });
     } catch (error) {
       console.error(error);
-      showPopup('Impossibile contattare il server. Riprova più tardi.', 'error', false);
+      forceLogoutAndRedirect('Sessione scaduta o server non raggiungibile. Effettua di nuovo il login.');
       return;
     }
     const data = await safeJson(response);
@@ -440,9 +699,27 @@ if (document.getElementById('inventory-table')) {
       const query = params.toString();
       fetchInventory(query ? `?${query}` : '');
     });
+
+    // Prefill from URL and auto-apply if present
+    const urlCodice = urlParams.get('codice_articolo');
+    const urlDescrizione = urlParams.get('descrizione');
+    const urlLocazione = urlParams.get('locazione');
+    if (urlCodice) document.getElementById('filter-codice').value = urlCodice;
+    if (urlDescrizione) document.getElementById('filter-descrizione').value = urlDescrizione;
+    if (urlLocazione) document.getElementById('filter-locazione').value = urlLocazione;
+    if (urlCodice || urlDescrizione || urlLocazione) {
+      const params = new URLSearchParams();
+      if (urlCodice) params.append('codice_articolo', urlCodice);
+      if (urlDescrizione) params.append('descrizione', urlDescrizione);
+      if (urlLocazione) params.append('locazione', urlLocazione);
+      const query = params.toString();
+      fetchInventory(`?${query}`);
+    }
   }
 
-  fetchInventory();
+  if (!urlParams.size) {
+    fetchInventory();
+  }
   document.getElementById('logout').addEventListener('click', function() {
     localStorage.removeItem('token');
     window.location.href = 'index.html';
@@ -463,7 +740,7 @@ if (document.getElementById('tree-view-root')) {
       });
     } catch (error) {
       console.error(error);
-      showPopup('Impossibile contattare il server. Riprova più tardi.', 'error', false);
+      forceLogoutAndRedirect('Sessione scaduta o server non raggiungibile. Effettua di nuovo il login.');
       return;
     }
     if (!response.ok) {
@@ -498,7 +775,7 @@ if (document.getElementById('export-btn')) {
       });
     } catch (error) {
       console.error(error);
-      showPopup('Impossibile contattare il server. Riprova più tardi.', 'error', false);
+      forceLogoutAndRedirect('Sessione scaduta o server non raggiungibile. Effettua di nuovo il login.');
       return;
     }
     if (!response.ok) {
@@ -535,7 +812,13 @@ if (document.getElementById('form-add-item')) {
     if (fotoFile) {
       formData.append("foto", fotoFile);
     }
-    formData.append("data_ingresso", document.getElementById('data_ingresso').value);
+    const rawDate = document.getElementById('data_ingresso').value;
+    const normalizedDate = toBackendDate(rawDate);
+    if (!normalizedDate) {
+      showPopup('Inserisci una data valida nel formato gg/mm/aaaa', 'error', false);
+      return;
+    }
+    formData.append("data_ingresso", normalizedDate);
     formData.append("carico", document.getElementById('carico').value);
     formData.append("scarico", document.getElementById('scarico').value);
     
@@ -548,7 +831,7 @@ if (document.getElementById('form-add-item')) {
       });
     } catch (error) {
       console.error(error);
-      showPopup('Impossibile contattare il server. Riprova più tardi.', 'error', false);
+      forceLogoutAndRedirect('Sessione scaduta o server non raggiungibile. Effettua di nuovo il login.');
       return;
     }
     const data = await safeJson(response);
@@ -584,12 +867,12 @@ if (document.getElementById('form-edit-item')) {
         document.getElementById('descrizione').value = data.descrizione || "";
         document.getElementById('unita_misura').value = data.unita_misura || "";
         document.getElementById('locazione').value = data.locazione || "";
-        document.getElementById('data_ingresso').value = data.data_ingresso || "";
+        document.getElementById('data_ingresso').value = toInputDateValue(data.data_ingresso || "") || "";
       }
     })
     .catch(error => {
       console.error(error);
-      showPopup('Errore nel recupero dei dati', 'error', false);
+      forceLogoutAndRedirect('Sessione scaduta o server non raggiungibile. Effettua di nuovo il login.');
     });
   }
   document.getElementById('form-edit-item').addEventListener('submit', async function(e) {
@@ -603,7 +886,13 @@ if (document.getElementById('form-edit-item')) {
     if (fotoFile) {
       formData.append("foto", fotoFile);
     }
-    formData.append("data_ingresso", document.getElementById('data_ingresso').value);
+    const rawDate = document.getElementById('data_ingresso').value;
+    const normalizedDate = toBackendDate(rawDate);
+    if (!normalizedDate) {
+      showPopup('Inserisci una data valida nel formato gg/mm/aaaa', 'error', false);
+      return;
+    }
+    formData.append("data_ingresso", normalizedDate);
     formData.append("carico", document.getElementById('carico').value);
     formData.append("scarico", document.getElementById('scarico').value);
     
@@ -616,7 +905,7 @@ if (document.getElementById('form-edit-item')) {
       });
     } catch (error) {
       console.error(error);
-      showPopup('Impossibile contattare il server. Riprova più tardi.', 'error', false);
+      forceLogoutAndRedirect('Sessione scaduta o server non raggiungibile. Effettua di nuovo il login.');
       return;
     }
     const data = await safeJson(response);

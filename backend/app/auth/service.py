@@ -88,6 +88,17 @@ def revoke_token(token_value: str) -> None:
         db.session.commit()
 
 
+def reset_password(username: str, new_password: str) -> bool:
+    """Aggiorna la password di un utente e revoca eventuali token attivi."""
+    user = User.query.filter_by(username=normalize_username(username)).first()
+    if not user:
+        return False
+    user.password = hash_password(new_password)
+    Token.query.filter_by(user_id=user.id).delete()
+    db.session.commit()
+    return True
+
+
 def purge_expired_tokens() -> None:
     now = datetime.utcnow()
     expired_tokens = Token.query.filter(Token.expires_at <= now).all()

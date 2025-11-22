@@ -1,14 +1,14 @@
 :root {
-  --bg-color: #020617;
-  --card-bg: rgba(15, 23, 42, 0.85);
+  --bg-color: #0c0c0d;
+  --card-bg: rgba(18, 18, 20, 0.9);
   --card-border: rgba(255, 255, 255, 0.08);
-  --text-color: #f8fafc;
-  --text-muted: #94a3b8;
-  --accent: #38bdf8;
-  --accent-strong: #f97316;
-  --danger: #f43f5e;
-  --success: #10b981;
-  --shadow: 0 30px 70px rgba(2, 8, 23, 0.7);
+  --text-color: #f7f1e9;
+  --text-muted: #cbbfae;
+  --accent: #f97316;
+  --accent-strong: #ffae52;
+  --danger: #ef4444;
+  --success: #22c55e;
+  --shadow: 0 30px 70px rgba(0, 0, 0, 0.7);
   --radius: 16px;
 }
 
@@ -18,8 +18,8 @@
 
 body {
   font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  background: radial-gradient(circle at top, rgba(56, 189, 248, 0.15), transparent 45%),
-    radial-gradient(circle at 20% 20%, rgba(248, 113, 113, 0.2), transparent 35%),
+  background: radial-gradient(circle at 15% 20%, rgba(249, 115, 22, 0.18), transparent 40%),
+    radial-gradient(circle at 80% 0%, rgba(255, 190, 92, 0.16), transparent 42%),
     var(--bg-color);
   color: var(--text-color);
   margin: 0;
@@ -161,6 +161,10 @@ body {
   gap: 16px;
 }
 
+.form-grid.form-vertical {
+  grid-template-columns: 1fr;
+}
+
 .input-group {
   display: flex;
   flex-direction: column;
@@ -170,6 +174,20 @@ body {
 .input-label {
   font-size: 13px;
   color: var(--text-muted);
+}
+
+.input-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  min-height: 16px;
+}
+
+.input-hint.hint-ok {
+  color: var(--success);
+}
+
+.input-hint.hint-error {
+  color: var(--danger);
 }
 
 input,
@@ -362,7 +380,7 @@ input[type="file"] {
 .tree-view,
 .tree-view ul {
   list-style: none;
-  padding-left: 16px;
+  padding-left: 0;
   margin: 0;
 }
 
@@ -374,27 +392,34 @@ input[type="file"] {
 .tree-view li ul {
   margin-top: 6px;
   padding-left: 18px;
+  display: none;
 }
 
 .tree-view li {
   position: relative;
   cursor: pointer;
+  padding-left: 18px;
 }
 
 .tree-view li::before {
   content: '';
   position: absolute;
-  left: -12px;
-  top: 50%;
-  width: 6px;
-  height: 6px;
+  left: 0;
+  top: 12px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: rgba(148, 163, 184, 0.5);
+  background: rgba(203, 191, 174, 0.6);
 }
 
 .tree-view li ul li {
   font-weight: 400;
   color: var(--text-muted);
+  padding-left: 10px;
+}
+
+.tree-view li.expanded > ul {
+  display: block;
 }
 
 #message {

@@ -9,6 +9,7 @@ from .service import (
     normalize_username,
     purge_expired_tokens,
     revoke_token,
+    reset_password,
     validate_password,
     validate_username,
 )
@@ -63,3 +64,33 @@ def logout():
 
     revoke_token(g.current_token)
     return jsonify({'message': 'Logout avvenuto con successo'}), 200
+
+
+@bp.route('/username-available', methods=['GET'])
+def username_available():
+    username = normalize_username(request.args.get('username') or '')
+    if not username:
+        return jsonify({'available': False, 'message': 'Username mancante'}), 400
+    if not validate_username(username):
+        return jsonify({'available': False, 'message': 'Username non valido. Usa 3-64 caratteri alfanumerici, \".\", \"-\" o \"_\".'}), 400
+    return jsonify({'available': not is_username_taken(username)}), 200
+
+
+@bp.route('/reset-password', methods=['POST'])
+def reset_password_route():
+    data = request.get_json() or {}
+    username = normalize_username(data.get('username') or '')
+    new_password = data.get('new_password') or ''
+    confirm_password = data.get('confirm_password') or ''
+
+    if not username or not new_password or not confirm_password:
+        return jsonify({'message': 'Dati mancanti'}), 400
+    if new_password != confirm_password:
+        return jsonify({'message': 'Le password non coincidono'}), 400
+    if not validate_password(new_password):
+        return jsonify({'message': 'Password troppo debole. Usa almeno 8 caratteri con maiuscole, minuscole e numeri.'}), 400
+
+    if not reset_password(username, new_password):
+        return jsonify({'message': 'Utente non trovato'}), 404
+
+    return jsonify({'message': 'Password reimpostata. Effettua il login con le nuove credenziali.'}), 200

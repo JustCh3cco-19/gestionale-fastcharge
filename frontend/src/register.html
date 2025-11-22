@@ -16,18 +16,21 @@
             <section class="auth-card">
                 <p class="eyebrow">Registrazione</p>
                 <h1>Inizia subito</h1>
-                <form id="form-register" class="form-grid">
+                <form id="form-register" class="form-grid form-vertical">
                     <label class="input-group" for="register-username">
                         <span class="input-label">Username</span>
                         <input type="text" id="register-username" placeholder="Scegli un username" required>
+                        <span id="username-feedback" class="input-hint"></span>
                     </label>
                     <label class="input-group" for="register-password">
                         <span class="input-label">Password</span>
                         <input type="password" id="register-password" placeholder="••••••••" required>
+                        <span id="password-feedback" class="input-hint"></span>
                     </label>
                     <label class="input-group" for="register-confirm-password">
                         <span class="input-label">Conferma Password</span>
                         <input type="password" id="register-confirm-password" placeholder="Ripeti la password" required>
+                        <span id="password-match-feedback" class="input-hint"></span>
                     </label>
                     <p class="form-hint">Minimo 8 caratteri, includi maiuscole, minuscole e numeri.</p>
                     <div class="form-actions">
@@ -35,6 +38,7 @@
                     </div>
                 </form>
                 <p class="auth-switch">Hai già un account? <a class="btn btn-link" href="index.html">Accedi</a></p>
+                <p class="auth-switch">Hai dimenticato la password? <a class="btn btn-link" href="reset_password.html">Reimposta</a></p>
                 <div id="message"></div>
             </section>
         </main>

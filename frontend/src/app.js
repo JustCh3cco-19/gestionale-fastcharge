@@ -757,11 +757,11 @@ if (document.getElementById('inventory-table')) {
       }
       if (!response.ok) {
         const errorText = await response.text();
-        showPopup("Errore durante l'export pacchetto: " + errorText, 'error', false);
+        showPopup("Errore durante l'export inventario: " + errorText, 'error', false);
         return;
       }
       const blob = await response.blob();
-      triggerDownload(window.URL.createObjectURL(blob), 'inventario_bundle.zip');
+      triggerDownload(window.URL.createObjectURL(blob), 'inventario.zip');
     });
   }
 

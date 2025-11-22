@@ -212,8 +212,8 @@ The executable is generated in `dist\GestionaleFastCharge\GestionaleFastCharge.e
 
 Use the bundled export/import to share the latest inventory (with attachments) when working offline or across multiple standalone installs.
 
-- Export: `GET /api/inventory/export/bundle` or use the **Esporta pacchetto** button in `inventory.html`. Produces a `.zip` with a manifest and all referenced uploads.
-- Import: `POST /api/inventory/import` with `file=<zip>` or use the **Importa pacchetto** button. It replaces the current inventory and uploads with the content of the archive.
+- Export: `GET /api/inventory/export/bundle` or use the **Esporta inventario** button in `inventory.html`. Produces a `.zip` with a manifest and all referenced uploads.
+- Import: `POST /api/inventory/import` with `file=<zip>` or use the **Importa inventario** button. It replaces the current inventory and uploads with the content of the archive.
 - CSV export remains available at `GET /api/inventory/export` for quick data-only extracts.
 
 ---
